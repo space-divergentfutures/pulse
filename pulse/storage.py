@@ -48,6 +48,13 @@ CREATE TABLE IF NOT EXISTS checkins (
     skipped    INTEGER NOT NULL DEFAULT 0  -- a soft signal, logged without guilt (§7)
 );
 CREATE INDEX IF NOT EXISTS idx_checkins_ts ON checkins (ts);
+
+-- All user-facing settings live here (§8: config.yaml is machine plumbing only).
+-- Values are JSON-encoded strings, decoded by pulse.settings.
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -183,6 +190,29 @@ class PulseStorage:
             (day,),
         ).fetchone()
         return float(row["total"])
+
+    # --- settings (raw JSON strings; pulse.settings owns the encoding) ----------
+
+    def get_setting(self, key: str) -> str | None:
+        row = self._conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+        return row["value"] if row is not None else None
+
+    def set_setting(self, key: str, value: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO settings (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, value),
+            )
+            self._conn.commit()
+
+    def all_settings(self) -> dict[str, str]:
+        return {
+            r["key"]: r["value"]
+            for r in self._conn.execute("SELECT key, value FROM settings").fetchall()
+        }
 
     # --- lifecycle -------------------------------------------------------------
 

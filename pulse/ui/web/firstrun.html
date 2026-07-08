@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome to PULSE</title>
+  <link rel="stylesheet" href="onboard.css">
+</head>
+<body>
+<div class="wrap">
+  <!-- Screen 1: the contract, before any settings or data (§6 canonical opening copy). -->
+  <section class="screen" id="introScreen">
+    <div class="brand">PULSE</div>
+    <div class="lede">Movement, focus &amp; reflection — built for how your brain actually works.</div>
+
+    <div class="copy">
+      <p><strong>PULSE is built for people whose brains don't do well with constant
+      low-grade friction.</strong></p>
+
+      <p>Most reminder and tracking apps assume you just need a nudge. This one assumes
+      something different: that the real cost isn't forgetting to move — it's the mental
+      tax of <em>managing</em> the mundane stuff all day, every day. The decision fatigue,
+      the context switching, the things that should be automatic but aren't.</p>
+
+      <p>PULSE tries to take some of that load off your plate. It gives you advance warning
+      before a break so you can finish your thought. It only interrupts when you choose.
+      It shows you what actually helps <em>you</em> — built from your own ratings, not what
+      some generic system thinks should help — and it only shows you patterns once there's
+      enough real data to be honest about them.</p>
+
+      <p>It was built by someone with the same wiring — tested on himself first, then with
+      others who live it too. Nothing in here is prescriptive. Everything is configurable
+      or driven by your own ratings. If a feature starts feeling like noise instead of
+      support, you can turn it off or tell the app it's not useful.</p>
+
+      <p>The goal is simple: give you back a bit more of your day and your energy for the
+      things that actually matter to you — instead of getting slowly drained by the stuff
+      your brain hates doing on autopilot.</p>
+
+      <p class="fine">A wellbeing companion, not medical advice. It never diagnoses, never
+      forces, never surveils — presence detection stores nothing but aggregates.</p>
+    </div>
+
+    <button class="primary" id="toProfiles">Choose a starting point →</button>
+  </section>
+
+  <!-- Screen 2: pick a profile — tunable starting points, NOT diagnoses (§2, §6). -->
+  <section class="screen hidden" id="profileScreen">
+    <div class="brand small">Pick a starting point</div>
+    <p class="sub">These are just sensible defaults — <strong>you can change everything
+    later</strong>, one slider at a time. Not a label, not a diagnosis.</p>
+
+    <div class="profiles" id="profiles"><!-- cards injected by JS --></div>
+
+    <div class="actions">
+      <button class="ghost" id="backToIntro">← Back</button>
+      <button class="primary" id="startBtn" disabled>Start with this</button>
+    </div>
+    <button class="skip" id="skipBtn">skip — just use the gentle defaults</button>
+  </section>
+</div>
+<script src="firstrun.js"></script>
+</body>
+</html>

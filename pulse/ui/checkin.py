@@ -87,6 +87,9 @@ class CheckinCard:
         left, top, right, bottom = self._platform.get_work_area()
         return right - self._width - self._margin, bottom - self._height - self._margin
 
+    def set_scale_max(self, scale_max: int) -> None:
+        self._scale_max = scale_max
+
     def show_checkin(self) -> None:
         self._eval(f"window.pulse.startCheckin({int(self._scale_max)})")
         if self._window is not None:

@@ -1,0 +1,137 @@
+/* PULSE onboarding + settings (spec §6). Normal windowed screens (not the frameless
+   corner surfaces), calm and readable. Shared by firstrun.html and settings.html. */
+
+:root {
+  --bg: #101219;
+  --panel: #171a23;
+  --panel-2: #1e2230;
+  --ink: #e8ebf2;
+  --muted: #9aa3b8;
+  --faint: #6b7386;
+  --accent: #7fd1c1;
+  --accent-btn: #2f6f63;
+  --accent-btn-hi: #3a8577;
+  --line: rgba(255,255,255,0.08);
+  --sel: rgba(127,209,193,0.16);
+  --water: #6db3d6;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; min-height: 100%;
+  background: var(--bg); color: var(--ink);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px; line-height: 1.5;
+}
+
+.wrap { max-width: 720px; margin: 0 auto; padding: 26px 26px 34px; }
+
+.brand { font-size: 22px; font-weight: 800; letter-spacing: .18em; color: var(--accent); }
+.brand.small { font-size: 16px; letter-spacing: .12em; }
+.lede { font-size: 15px; color: var(--muted); margin: 6px 0 18px; }
+.sub { color: var(--muted); margin: 4px 0 16px; }
+
+.screen.hidden { display: none; }
+
+.copy p { margin: 0 0 12px; color: #d4d9e6; }
+.copy strong { color: var(--ink); }
+.copy .fine { font-size: 12.5px; color: var(--faint); margin-top: 16px; }
+
+button { font-family: inherit; cursor: pointer; }
+
+.primary {
+  appearance: none; border: none; margin-top: 18px;
+  background: var(--accent-btn); color: #eafff8;
+  font-size: 14px; font-weight: 650; border-radius: 10px; padding: 11px 18px;
+  transition: background .12s ease, transform .06s ease;
+}
+.primary:hover { background: var(--accent-btn-hi); }
+.primary:active { transform: translateY(1px); }
+.primary:disabled { background: #2a3340; color: #6b7386; cursor: default; }
+
+.ghost {
+  appearance: none; background: transparent; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 10px; padding: 11px 16px; font-size: 14px;
+}
+.ghost:hover { color: var(--ink); border-color: var(--accent); }
+
+.skip {
+  display: block; margin: 14px auto 0; background: none; border: none;
+  color: var(--faint); font-size: 12.5px; text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.skip:hover { color: var(--muted); }
+
+.actions { display: flex; gap: 10px; align-items: center; margin-top: 18px; }
+.actions .primary { margin-top: 0; }
+
+/* --- profile cards --- */
+.profiles { display: flex; flex-direction: column; gap: 10px; }
+.profile {
+  text-align: left; width: 100%;
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 12px;
+  padding: 13px 15px; color: var(--ink);
+  transition: border-color .12s ease, background .12s ease;
+}
+.profile:hover { border-color: rgba(127,209,193,0.5); }
+.profile.selected { border-color: var(--accent); background: var(--sel); }
+.profile .p-name { font-size: 15px; font-weight: 650; }
+.profile .p-blurb { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+
+/* --- settings groups --- */
+.group { margin-top: 22px; }
+.group-title {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--faint); font-weight: 700; margin-bottom: 8px;
+}
+.setting {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 11px;
+  padding: 12px 14px; margin-bottom: 9px;
+}
+.setting-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.setting-label { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.qmark {
+  width: 18px; height: 18px; border-radius: 50%; flex: none;
+  background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
+  font-size: 11px; font-weight: 700; line-height: 16px; text-align: center; cursor: pointer;
+}
+.qmark:hover { color: var(--accent); border-color: var(--accent); }
+
+.control select, .control input[type="number"] {
+  background: var(--panel-2); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 9px; font-size: 13px; font-family: inherit;
+  min-width: 150px;
+}
+.control .toggle {
+  appearance: none; width: 44px; height: 24px; border-radius: 13px;
+  background: #2a3340; position: relative; cursor: pointer; border: none;
+  transition: background .15s ease;
+}
+.control .toggle::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+  border-radius: 50%; background: #cfd6e4; transition: transform .15s ease;
+}
+.control .toggle.on { background: var(--accent-btn); }
+.control .toggle.on::after { transform: translateX(20px); }
+.control .num-row { display: flex; align-items: center; gap: 6px; }
+.control .unit { color: var(--muted); font-size: 12px; }
+
+/* the "?" explainer bubble */
+.explainer {
+  margin-top: 10px; padding: 10px 12px; border-radius: 9px;
+  background: var(--panel-2); border: 1px solid var(--line); font-size: 12.5px;
+}
+.explainer.hidden { display: none; }
+.explainer .row { margin-bottom: 6px; }
+.explainer .row:last-child { margin-bottom: 0; }
+.explainer .tag { color: var(--accent); font-weight: 650; }
+.explainer .tag.who { color: var(--water); }
+.explainer .tag.trade { color: #e0a94a; }
+
+.savebar {
+  position: sticky; bottom: 0; margin-top: 24px; padding-top: 14px;
+  border-top: 1px solid var(--line); background: var(--bg);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.saved-note { color: var(--faint); font-size: 12px; }

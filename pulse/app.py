@@ -22,10 +22,13 @@ from .content import hydration_prompt_at, light_movement_at
 from .platform import get_platform
 from .platform.base import PlatformInterface
 from .reflection import graph_payload
+from .settings import Settings
 from .state_machine import EngineEvent, SessionEngine, SessionState
 from .storage import PulseStorage
 from .ui.break_card import BreakCard
 from .ui.checkin import CheckinCard
+from .ui.firstrun import FirstRunWindow
+from .ui.settings_window import SettingsWindow
 from .ui.widget import CornerWidget
 
 
@@ -37,13 +40,16 @@ class PulseApp:
         platform: PlatformInterface | None = None,
         storage: PulseStorage | None = None,
         db_path: str | None = None,
-        scale_max: int = 10,
+        scale_max: int | None = None,
         poll_interval_seconds: float = 5.0,
     ) -> None:
-        self.config = config or TimingConfig()
         self.platform = platform or get_platform()
         self.storage = storage or PulseStorage(db_path)
-        self.scale_max = scale_max
+        self.settings = Settings(self.storage)
+        # Every user-facing setting lives in SQLite (§6/§8); the engine config is derived
+        # from it. An explicit config/scale_max still wins (used by verification harnesses).
+        self.config = config if config is not None else self.settings.to_timing_config()
+        self.scale_max = scale_max if scale_max is not None else self.settings.scale_max()
         self.poll_interval = poll_interval_seconds
 
         self.engine = SessionEngine(self.config)
@@ -72,6 +78,10 @@ class PulseApp:
             on_close=self._on_checkin_close,
             scale_max=self.scale_max,
         )
+        self.settings_window = SettingsWindow(
+            self.settings, on_changed=self._reload_config_from_settings
+        )
+        self._firstrun: FirstRunWindow | None = None
 
     # --- lifecycle -------------------------------------------------------------
 
@@ -83,6 +93,12 @@ class PulseApp:
         self.widget.create()
         self.break_card.create()
         self.checkin.create()
+        self.settings_window.create()
+
+        # First launch walks through the core choices once, with the explainers (§6).
+        if not self.settings.first_run_complete:
+            self._firstrun = FirstRunWindow(on_finish=self._on_first_run_finish)
+            self._firstrun.create()
 
         def _startup() -> None:
             threading.Thread(target=self._poll_loop, daemon=True).start()
@@ -90,6 +106,30 @@ class PulseApp:
                 _on_started()
 
         webview.start(_startup, debug=False)
+
+    # --- settings / first-run --------------------------------------------------
+
+    def _on_first_run_finish(self, profile_key: str | None) -> None:
+        """First-run finished: apply the chosen profile (or keep gentle defaults), mark
+        it done, and rebuild the engine config from the new settings."""
+        if profile_key:
+            self.settings.apply_profile(profile_key)
+        self.settings.mark_first_run_complete()
+        self._reload_config_from_settings()
+        if self._firstrun is not None:
+            self._firstrun.destroy()
+            self._firstrun = None
+
+    def open_settings(self) -> None:
+        self.settings_window.show()
+
+    def _reload_config_from_settings(self) -> None:
+        """Apply a settings change to the live engine immediately (§6: fully tunable)."""
+        with self._lock:
+            self.config = self.settings.to_timing_config()
+            self.engine.config = self.config
+        self.scale_max = self.settings.scale_max()
+        self.checkin.set_scale_max(self.scale_max)
 
     def stop(self) -> None:
         self._stop.set()

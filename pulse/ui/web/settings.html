@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PULSE settings</title>
+  <link rel="stylesheet" href="onboard.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="brand small">PULSE settings</div>
+  <p class="sub">Everything's a slider with a "?" — read the bubbles; they explain who each
+  option tends to suit and the trade-off. Nothing here is a diagnosis.</p>
+
+  <div class="group">
+    <div class="group-title">Start from a profile</div>
+    <div class="setting">
+      <div class="setting-head">
+        <div class="control">
+          <select id="profileSelect"></select>
+        </div>
+        <button class="ghost" id="applyProfile">Apply profile</button>
+      </div>
+      <div class="sub" id="profileBlurb" style="margin:8px 0 0;"></div>
+    </div>
+  </div>
+
+  <div id="groups"><!-- setting groups injected by JS --></div>
+
+  <div class="savebar">
+    <span class="saved-note" id="savedNote">changes save automatically</span>
+    <button class="primary" id="closeBtn">Close</button>
+  </div>
+</div>
+<script src="settings.js"></script>
+</body>
+</html>
