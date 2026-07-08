@@ -26,6 +26,7 @@ from .reflection import graph_payload
 from .settings import Settings
 from .state_machine import EngineEvent, SessionEngine, SessionState
 from .storage import PulseStorage
+from .theme import build_vars, inject_theme
 from .training import big_break_payload, pick_big_break_options, pick_session, session_payload
 from .ui.break_card import BreakCard
 from .ui.checkin import CheckinCard
@@ -71,6 +72,7 @@ class PulseApp:
         self._training_deferred = False  # BOUNDARY_DUE fired while focus mode — queued
         self._in_training = False
         self._training_session_cursor = 0  # rotates through exercise category pairs
+        self._theme_applied = False      # inject CSS vars on first poll after windows load
 
         self.widget = CornerWidget(
             self.platform,
@@ -149,6 +151,21 @@ class PulseApp:
             self.engine.config = self.config
         self.scale_max = self.settings.scale_max()
         self.checkin.set_scale_max(self.scale_max)
+        self._apply_theme_to_all()
+
+    def _apply_theme_to_all(self) -> None:
+        """Inject current appearance CSS vars into every live pywebview window."""
+        vars = build_vars(self.settings)
+        controllers = [
+            self.widget, self.break_card, self.checkin,
+            self.settings_window, self.training_card,
+        ]
+        if self._firstrun is not None:
+            controllers.append(self._firstrun)
+        for ctrl in controllers:
+            win = getattr(ctrl, "_window", None)
+            if win is not None:
+                inject_theme(win, vars)
 
     def stop(self) -> None:
         self._stop.set()
@@ -157,6 +174,10 @@ class PulseApp:
 
     def _poll_loop(self) -> None:
         while not self._stop.is_set():
+            if not self._theme_applied:
+                self._apply_theme_to_all()
+                self._theme_applied = True
+
             now = self.platform.get_monotonic_ms()
             idle = self.platform.get_idle_seconds()
             locked = self.platform.is_session_locked()

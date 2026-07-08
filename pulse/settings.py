@@ -260,6 +260,98 @@ SETTING_DEFS: tuple[SettingDef, ...] = (
             "coarser.",
         ),
     ),
+    # --- Appearance (§2 / §8) — sensory and readability preferences ----------
+    SettingDef(
+        key="appearance_theme",
+        label="Colour theme",
+        kind="choice",
+        default="dark",
+        group="Appearance",
+        choices=(
+            Choice("dark",     "Dark (default)"),
+            Choice("light",    "Light"),
+            Choice("dark_hc",  "Dark — high contrast"),
+            Choice("light_hc", "Light — high contrast"),
+        ),
+        explainer=Explainer(
+            what="The overall background and text palette. High-contrast options push "
+            "foreground text further from the background for people who need stronger "
+            "separation.",
+            who="Light suits people who work near a bright window; high contrast suits "
+            "people with strong light sensitivity or who find low-contrast text physically "
+            "tiring.",
+            tradeoff="High contrast can feel visually harsh after a long session if your "
+            "sensitivity runs the other way — you can always flip back.",
+        ),
+    ),
+    SettingDef(
+        key="appearance_accent",
+        label="Accent colour",
+        kind="choice",
+        default="teal",
+        group="Appearance",
+        choices=(
+            Choice("teal",     "Teal (default)"),
+            Choice("violet",   "Violet"),
+            Choice("coral",    "Coral"),
+            Choice("sky",      "Sky blue"),
+            Choice("sage",     "Sage green"),
+            Choice("peach",    "Peach"),
+            Choice("lavender", "Lavender"),
+        ),
+        explainer=Explainer(
+            what="The highlight colour used for timers, buttons, and the graph. "
+            "All options are tested for readable contrast on both dark and light themes.",
+            who="Colour preference is personal and sensory — pick whatever feels "
+            "calm and easy to look at for you.",
+            tradeoff="No real trade-off here. Change it any time.",
+        ),
+    ),
+    SettingDef(
+        key="appearance_font_size",
+        label="Text size",
+        kind="choice",
+        default="normal",
+        group="Appearance",
+        choices=(
+            Choice("small",  "Small (88%)"),
+            Choice("normal", "Normal (default)"),
+            Choice("large",  "Large (115%)"),
+            Choice("xlarge", "Extra large (135%)"),
+        ),
+        explainer=Explainer(
+            what="Scales all text and spacing up or down uniformly across every "
+            "PULSE window. Uses the browser zoom mechanism so layout proportions "
+            "stay consistent.",
+            who="Larger sizes tend to suit people who find small text tiring or "
+            "need more reading room; smaller suits people who want more content "
+            "on screen.",
+            tradeoff="At Extra large, fixed-size cards may clip a word at the "
+            "edge — the content is still there, just scroll or resize the window.",
+        ),
+    ),
+    SettingDef(
+        key="appearance_font",
+        label="Font style",
+        kind="choice",
+        default="default",
+        group="Appearance",
+        choices=(
+            Choice("default", "Default (Segoe UI / system sans-serif)"),
+            Choice("mono",    "Monospace (Consolas)"),
+            Choice("serif",   "Serif (Georgia)"),
+        ),
+        explainer=Explainer(
+            what="The typeface used throughout PULSE. All options are system fonts "
+            "guaranteed to be present on Windows — no downloads.",
+            who="Monospace tends to suit people who find regular sans-serif fonts "
+            "visually busy; serif suits people who read prose more comfortably with "
+            "letter serifs as anchors.",
+            tradeoff="Monospace uses more horizontal space — some labels may wrap "
+            "at smaller window sizes.",
+        ),
+    ),
+    # --- Focus Guard ---------------------------------------------------------
     SettingDef(
         key="focus_mode_enabled",
         label="Focus Guard",
