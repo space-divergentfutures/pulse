@@ -18,7 +18,7 @@ import sqlite3
 import threading
 import time
 import uuid
-from datetime import date as _date
+from datetime import date as _date, timedelta as _timedelta
 from pathlib import Path
 
 _SCHEMA = """
@@ -295,6 +295,37 @@ class PulseStorage:
             (self.machine_id,),
         ).fetchall()
         return {r["block_type"]: round(r["avg_r"], 1) for r in rows}
+
+    def ratings_this_week(self) -> list[dict]:
+        """Ratings grouped by day for the current Mon→Sun week (all 7 days returned).
+        Future days get an empty ratings list and future=True."""
+        today = _date.today()
+        mon = today - _timedelta(days=today.weekday())
+        rows = self._conn.execute(
+            "SELECT day, rating FROM checkins "
+            "WHERE machine_id = ? AND skipped = 0 AND rating IS NOT NULL "
+            "AND day >= ? ORDER BY ts",
+            (self.machine_id, mon.isoformat()),
+        ).fetchall()
+        by_day: dict[str, list] = {}
+        for r in rows:
+            by_day.setdefault(r["day"], []).append(r["rating"])
+        result = []
+        for i in range(7):
+            d = mon + _timedelta(days=i)
+            iso = d.isoformat()
+            is_future = d > today
+            ratings = [] if is_future else by_day.get(iso, [])
+            avg = round(sum(ratings) / len(ratings), 1) if ratings else None
+            result.append({
+                "day": d.strftime("%a"),
+                "date": iso,
+                "ratings": ratings,
+                "avg": avg,
+                "future": is_future,
+                "today": d == today,
+            })
+        return result
 
     # --- active time (per machine, summed at display) --------------------------
 

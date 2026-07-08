@@ -22,7 +22,7 @@ from .content import hydration_prompt_at, light_movement_at
 from .meal import active_window_now
 from .platform import get_platform
 from .platform.base import PlatformInterface
-from .reflection import compute_patterns, graph_payload
+from .reflection import compute_patterns, graph_payload, weekly_payload
 from .settings import Settings
 from .state_machine import EngineEvent, SessionEngine, SessionState
 from .storage import PulseStorage
@@ -31,6 +31,7 @@ from .training import big_break_payload, pick_big_break_options, pick_session, s
 from .ui.break_card import BreakCard
 from .ui.checkin import CheckinCard
 from .ui.firstrun import FirstRunWindow
+from .ui.insights import InsightsWindow
 from .ui.settings_window import SettingsWindow
 from .ui.training_card import TrainingCard
 from .ui.widget import CornerWidget
@@ -98,6 +99,7 @@ class PulseApp:
             on_close=self._on_checkin_close,
             scale_max=self.scale_max,
         )
+        self.insights_window = InsightsWindow(load_cb=self._load_insights)
         self.settings_window = SettingsWindow(
             self.settings, on_changed=self._reload_config_from_settings
         )
@@ -120,6 +122,7 @@ class PulseApp:
         self.widget.create()
         self.break_card.create()
         self.checkin.create()
+        self.insights_window.create()
         self.settings_window.create()
         self.training_card.create()
 
@@ -151,6 +154,13 @@ class PulseApp:
     def open_settings(self) -> None:
         self.settings_window.show()
 
+    def open_insights(self) -> None:
+        self.insights_window.show()
+
+    def _load_insights(self) -> dict:
+        with self._lock:
+            return weekly_payload(self.storage, self.config, self.scale_max)
+
     def _reload_config_from_settings(self) -> None:
         """Apply a settings change to the live engine immediately (§6: fully tunable)."""
         with self._lock:
@@ -165,7 +175,7 @@ class PulseApp:
         vars = build_vars(self.settings)
         controllers = [
             self.widget, self.break_card, self.checkin,
-            self.settings_window, self.training_card,
+            self.insights_window, self.settings_window, self.training_card,
         ]
         if self._firstrun is not None:
             controllers.append(self._firstrun)

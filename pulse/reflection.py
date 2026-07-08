@@ -68,6 +68,84 @@ def compute_patterns(storage: PulseStorage, config: TimingConfig) -> list[dict]:
     return patterns
 
 
+def weekly_payload(
+    storage: PulseStorage, config: TimingConfig, scale_max: int = 10
+) -> dict:
+    """Everything the Insights window needs: week chart, unlock meter, patterns (§7/§10).
+
+    stage_needed is a plain-language hint about what's next — always forward-looking,
+    never shaming. Pattern cards are empty until the evidence floor is met."""
+    count = storage.counted_checkins()
+    floor = max(1, config.insight_min_observations)
+    pct = min(100, round(count / floor * 100))
+    unlocked = count >= floor
+    stage = storage.reflection_stage()
+
+    week_days = storage.ratings_this_week()
+    all_week = [r for d in week_days for r in d["ratings"]]
+    week_count = len(all_week)
+    week_avg = round(sum(all_week) / week_count, 1) if all_week else None
+
+    # Sub-meter for the next stage unlock — a smaller bar always filling toward something.
+    next_stage: int | None = None
+    stage_needed: str | None = None
+    stage_pct: int = 100
+    if stage == 1:
+        next_stage = 2
+        total = storage.counted_checkins()
+        days = storage.distinct_rating_days()
+        need_c = max(0, 5 - total)
+        need_d = max(0, 3 - days)
+        # Stage 2 threshold = max of both conditions
+        stage_pct = min(
+            min(100, round(total / 5 * 100)),
+            min(100, round(days / 3 * 100)),
+        )
+        if need_c > 0 and need_d > 0:
+            stage_needed = (
+                f"{need_c} more check-in{'s' if need_c != 1 else ''} "
+                f"across {need_d} more day{'s' if need_d != 1 else ''} "
+                "to unlock block-type tracking"
+            )
+        elif need_c > 0:
+            stage_needed = (
+                f"{need_c} more check-in{'s' if need_c != 1 else ''} "
+                "to unlock block-type tracking"
+            )
+        elif need_d > 0:
+            stage_needed = (
+                f"Check in on {need_d} more day{'s' if need_d != 1 else ''} "
+                "to unlock block-type tracking"
+            )
+    elif stage == 2:
+        next_stage = 3
+        done = storage.checkins_with_dimension("block_type")
+        n = max(0, 5 - done)
+        stage_pct = min(100, round(done / 5 * 100))
+        if n > 0:
+            stage_needed = (
+                f"{n} more block-type fill{'s' if n != 1 else ''} "
+                "to unlock note tracking"
+            )
+
+    return {
+        "stage": stage,
+        "unlocked": unlocked,
+        "meter_pct": pct,
+        "count": count,
+        "floor": floor,
+        "scale_max": scale_max,
+        "patterns": compute_patterns(storage, config) if unlocked else [],
+        "week_days": week_days,
+        "week_count": week_count,
+        "week_avg": week_avg,
+        "distinct_days": storage.distinct_rating_days(),
+        "next_stage": next_stage,
+        "stage_pct": stage_pct,
+        "stage_needed": stage_needed,
+    }
+
+
 def graph_payload(
     storage: PulseStorage, config: TimingConfig, scale_max: int = 10
 ) -> dict:
