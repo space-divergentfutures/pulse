@@ -37,6 +37,28 @@ from .ui.training_card import TrainingCard
 from .ui.widget import CornerWidget
 
 
+def _startup_command() -> str:
+    """Return the launch command for the HKCU Run key, or '' in development."""
+    import sys
+    if getattr(sys, "frozen", False):
+        return sys.executable  # PyInstaller bundle: exe is the command
+    return ""  # development — don't register; packaging handles it in Step 13
+
+
+def _sync_startup_key(platform, settings) -> None:
+    """Sync the HKCU Run key with the start_with_windows setting (§11)."""
+    enabled = settings.get("start_with_windows")
+    cmd = _startup_command()
+    try:
+        if enabled and cmd:
+            platform.set_startup_enabled(True, cmd)
+        elif not enabled:
+            platform.set_startup_enabled(False)
+        # If enabled but no cmd (development), skip silently.
+    except Exception:
+        pass  # registry may be unavailable in sandboxed test environments
+
+
 class PulseApp:
     def __init__(
         self,
@@ -79,6 +101,10 @@ class PulseApp:
         self._useful_check_pending = False
         self._useful_check_seeded = False   # seed engine counter from storage on first tick
         self._last_checkin_id: str | None = None
+
+        # Step 11: pause flag + tray handle.
+        self._paused = False
+        self._tray = None
 
         self.widget = CornerWidget(
             self.platform,
@@ -132,11 +158,16 @@ class PulseApp:
             self._firstrun.create()
 
         def _startup() -> None:
+            self._start_tray()
             threading.Thread(target=self._poll_loop, daemon=True).start()
             if _on_started is not None:
                 _on_started()
 
         webview.start(_startup, debug=False)
+        # webview.start() returns when all windows are destroyed (e.g. Quit).
+        if self._tray is not None:
+            self._tray.stop()
+        self.storage.close()
 
     # --- settings / first-run --------------------------------------------------
 
@@ -161,6 +192,42 @@ class PulseApp:
         with self._lock:
             return weekly_payload(self.storage, self.config, self.scale_max)
 
+    def _start_tray(self) -> None:
+        from .ui.tray import PulseTray
+        self._tray = PulseTray(
+            on_pause_resume=self._on_pause_resume,
+            on_break_now=self._on_break_now,
+            on_insights=self.open_insights,
+            on_settings=self.open_settings,
+            on_quit=self._on_quit,
+            get_today_count=lambda: self.storage.training_count_today(),
+            get_paused=lambda: self._paused,
+        )
+        self._tray.start()
+        # Sync HKCU startup key with the setting (e.g. after a reinstall to a new path).
+        _sync_startup_key(self.platform, self.settings)
+
+    def _on_pause_resume(self) -> None:
+        self._paused = not self._paused
+        if self._paused and self._widget_visible:
+            self.widget.hide()
+            self._widget_visible = False
+
+    def _on_quit(self) -> None:
+        """Tray Quit: stop the poll loop, destroy all windows, clean up."""
+        self._stop.set()
+        controllers = [
+            self.widget, self.break_card, self.checkin,
+            self.insights_window, self.settings_window, self.training_card,
+        ]
+        if self._firstrun is not None:
+            controllers.append(self._firstrun)
+        for ctrl in controllers:
+            try:
+                ctrl.destroy()
+            except Exception:
+                pass
+
     def _reload_config_from_settings(self) -> None:
         """Apply a settings change to the live engine immediately (§6: fully tunable)."""
         with self._lock:
@@ -169,6 +236,7 @@ class PulseApp:
         self.scale_max = self.settings.scale_max()
         self.checkin.set_scale_max(self.scale_max)
         self._apply_theme_to_all()
+        _sync_startup_key(self.platform, self.settings)
 
     def _apply_theme_to_all(self) -> None:
         """Inject current appearance CSS vars into every live pywebview window."""
@@ -218,7 +286,7 @@ class PulseApp:
 
             # Keep the corner countdown current while it's showing (ACTIVE-time based,
             # so it pauses when the person goes idle — re-pushed here every poll).
-            if not self._in_break and state is SessionState.WARN:
+            if not self._in_break and not self._paused and state is SessionState.WARN:
                 focus_mode = self.settings.get("focus_mode_enabled")
                 remaining = max(0.0, self.config.light_interval_minutes * 60.0 - short_s)
                 # In focus mode the widget never escalates — stays quiet, purely advisory.
@@ -229,6 +297,20 @@ class PulseApp:
             self._stop.wait(self.poll_interval)
 
     def _handle_event(self, event: EngineEvent) -> None:
+        # AWAY_RESET is always processed — a natural break clears pending state even
+        # while paused, so unpause doesn't immediately re-warn the user.
+        if event is EngineEvent.AWAY_RESET:
+            self._due = False
+            self._training_pending = False
+            self._training_deferred = False
+            if self._widget_visible:
+                self.widget.hide()
+                self._widget_visible = False
+            return
+
+        if self._paused:
+            return  # suppress all other events while user has manually paused
+
         if event is EngineEvent.WARNING_START:
             self._due = False
             if not self._widget_visible and not self._in_break:
@@ -236,14 +318,6 @@ class PulseApp:
                 self._widget_visible = True
         elif event is EngineEvent.BREAK_DUE:
             self._due = True
-        elif event is EngineEvent.AWAY_RESET:
-            # The person took a real break on their own — stand down quietly.
-            self._due = False
-            self._training_pending = False
-            self._training_deferred = False  # natural break satisfies the deferred training
-            if self._widget_visible:
-                self.widget.hide()
-                self._widget_visible = False
         elif event is EngineEvent.BOUNDARY_DUE:
             if self._can_offer_training() and not self._in_break and not self._in_training:
                 if self.settings.get("focus_mode_enabled"):

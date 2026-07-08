@@ -351,6 +351,24 @@ SETTING_DEFS: tuple[SettingDef, ...] = (
             "at smaller window sizes.",
         ),
     ),
+    # --- System --------------------------------------------------------------
+    SettingDef(
+        key="start_with_windows",
+        label="Start with Windows",
+        kind="bool",
+        default=False,
+        group="System",
+        explainer=Explainer(
+            what="Adds PULSE to the per-user Windows startup list (HKCU Run key) "
+            "so it launches automatically when you log in. No administrator "
+            "permission is required — it only applies to your account.",
+            who="Anyone who wants PULSE running in the background from the moment "
+            "they sit down, without remembering to launch it manually.",
+            tradeoff="Only takes effect in the packaged app (not during development). "
+            "Turn it off here to remove the startup entry — PULSE won't launch "
+            "on its own until you turn it back on.",
+        ),
+    ),
     # --- Focus Guard ---------------------------------------------------------
     SettingDef(
         key="focus_mode_enabled",

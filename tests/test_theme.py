@@ -162,5 +162,5 @@ def test_appearance_defaults():
 
 
 def test_setting_count_with_appearance():
-    # 12 (step 5) + 1 (focus_mode) + 4 (appearance) = 17
-    assert len(SETTING_DEFS) == 17
+    # 12 (step 5) + 1 (focus_mode) + 4 (appearance) + 1 (start_with_windows) = 18
+    assert len(SETTING_DEFS) == 18

@@ -56,8 +56,8 @@ def test_focus_mode_is_bool_kind():
 
 
 def test_setting_count_includes_focus_guard():
-    # 12 (step 5) + 1 (focus_mode) + 4 (appearance) = 17
-    assert len(SETTING_DEFS) == 17
+    # 12 (step 5) + 1 (focus_mode) + 4 (appearance) + 1 (start_with_windows) = 18
+    assert len(SETTING_DEFS) == 18
 
 
 # ---------------------------------------------------------------------------
