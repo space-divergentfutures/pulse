@@ -102,6 +102,16 @@ CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- Records successfully pushed to the remote PocketBase instance (§12).
+-- Acts as an implicit retry queue: any row not present here is re-attempted on the
+-- next sync cycle. Pulled rows from other machines are NOT logged here (no re-push).
+CREATE TABLE IF NOT EXISTS sync_log (
+    record_id  TEXT NOT NULL,
+    collection TEXT NOT NULL,
+    synced_at  REAL NOT NULL,
+    PRIMARY KEY (record_id, collection)
+);
 """
 
 
@@ -559,6 +569,72 @@ class PulseStorage:
         if row is None or row["pain_until"] is None:
             return False
         return row["pain_until"] >= _d2.today().isoformat()
+
+    # --- sync support (§12) ---------------------------------------------------
+
+    def unsynced_checkins(self, limit: int = 200) -> list[dict]:
+        """Checkin rows not yet recorded in sync_log — these are sent to PocketBase next."""
+        rows = self._conn.execute(
+            "SELECT c.* FROM checkins c "
+            "LEFT JOIN sync_log s ON s.record_id = c.id AND s.collection = 'checkins' "
+            "WHERE s.record_id IS NULL ORDER BY c.ts LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def unsynced_breaks(self, limit: int = 200) -> list[dict]:
+        """Break rows not yet recorded in sync_log."""
+        rows = self._conn.execute(
+            "SELECT b.* FROM breaks b "
+            "LEFT JOIN sync_log s ON s.record_id = b.id AND s.collection = 'breaks' "
+            "WHERE s.record_id IS NULL ORDER BY b.ts LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def record_synced(self, record_id: str, collection: str) -> None:
+        """Mark a row as successfully pushed so it is skipped on the next sync cycle."""
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO sync_log (record_id, collection, synced_at) "
+                "VALUES (?, ?, ?)",
+                (record_id, collection, time.time()),
+            )
+            self._conn.commit()
+
+    def insert_remote_checkin(self, row: dict) -> bool:
+        """Insert a checkin received from another machine. ON CONFLICT IGNORE — local rows
+        are never overwritten. Returns True if a new row was inserted."""
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT OR IGNORE INTO checkins "
+                "(id, machine_id, ts, day, rating, block_type, energy, note, skipped) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    row["id"], row["machine_id"], row["ts"], row["day"],
+                    row.get("rating"), row.get("block_type"), row.get("energy"),
+                    row.get("note"), row.get("skipped", 0),
+                ),
+            )
+            self._conn.commit()
+        return cur.rowcount == 1
+
+    def insert_remote_break(self, row: dict) -> bool:
+        """Insert a break received from another machine. ON CONFLICT IGNORE.
+        Returns True if a new row was inserted."""
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT OR IGNORE INTO breaks "
+                "(id, machine_id, ts, day, layer, enforcement, outcome, duration_s) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    row["id"], row["machine_id"], row["ts"], row["day"],
+                    row["layer"], row["enforcement"], row["outcome"],
+                    row.get("duration_s"),
+                ),
+            )
+            self._conn.commit()
+        return cur.rowcount == 1
 
     # --- lifecycle -------------------------------------------------------------
 

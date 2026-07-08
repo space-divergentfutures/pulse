@@ -369,6 +369,26 @@ SETTING_DEFS: tuple[SettingDef, ...] = (
             "on its own until you turn it back on.",
         ),
     ),
+    # --- Sync (§12) ----------------------------------------------------------
+    SettingDef(
+        key="sync_enabled",
+        label="PocketBase sync",
+        kind="bool",
+        default=False,
+        group="Sync",
+        explainer=Explainer(
+            what="Syncs your checkin and break history to a self-hosted PocketBase "
+            "instance over your Tailscale private network. Requires a sync_url in "
+            "config.yaml and a PULSE_PB_TOKEN environment variable — the token is "
+            "never stored in the app or any file.",
+            who="Anyone running PULSE on more than one machine, or who wants a "
+            "second copy of their data beyond the local SQLite file. Completely "
+            "optional — PULSE works fully offline without it.",
+            tradeoff="Off by default because most users don't run PocketBase. "
+            "Enabling without a valid URL and token does nothing — no data leaves "
+            "the machine unless both are configured.",
+        ),
+    ),
     # --- Focus Guard ---------------------------------------------------------
     SettingDef(
         key="focus_mode_enabled",

@@ -4,22 +4,22 @@
 # EVERY user-facing setting (intervals, enforcement style, profiles, meal windows,
 # rating scale, etc.) lives in SQLite, never here. Two homes, zero overlap.
 #
-# Copy this file to `config.yaml` and edit. `config.yaml` is git-ignored and
-# private to each machine.
+# Copy this file to `config.yaml` (placed in %LOCALAPPDATA%\PULSE\) and edit it.
+# `config.yaml` is git-ignored and private to each machine.
 
-# Where the local SQLite database lives. Default: alongside the app data.
+# Where the local SQLite database lives.
 # Leave blank to use the platform default (%LOCALAPPDATA%\PULSE\pulse.db on Windows).
-db_path: ""
+# db_path: C:\Users\you\Documents\PULSE\pulse.db
 
-# A stable, human-readable name for THIS machine. Used in the machine_id merge
-# rules so multi-machine records never collide. If blank, a UUID is generated
-# once and stored next to the database.
-machine_name: ""
+# An optional friendly name for this machine (used in future multi-machine views).
+# machine_name: my-laptop
 
-# --- Optional sync module (OFF by default; see §8) ---
-# Local SQLite is always the source of truth. Sync is best-effort and Tailnet-only.
-sync:
-  enabled: false
-  # PocketBase base URL, reachable over your Tailscale tailnet only — never internet-exposed.
-  base_url: ""
-  # The auth token is read from the PULSE_PB_TOKEN environment variable, NEVER stored here.
+# --- Optional sync module (spec §12) ---
+# Local SQLite is ALWAYS the source of truth. Sync is best-effort and Tailnet-only.
+# To enable: set sync_enabled = true in PULSE Settings, add your Tailscale IP here,
+# and export PULSE_PB_TOKEN=<your-token> in your shell. Never put the token in this file.
+#
+# The PocketBase instance must only be reachable over your Tailscale tailnet —
+# NEVER expose it on the public internet.
+#
+# sync_url: http://100.x.x.x:8090

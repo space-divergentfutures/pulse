@@ -12,6 +12,7 @@ only aggregates; nothing here records what you were doing.
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 
@@ -105,6 +106,9 @@ class PulseApp:
         # Step 11: pause flag + tray handle.
         self._paused = False
         self._tray = None
+
+        # Step 12: optional PocketBase sync handle.
+        self._sync = None
 
         self.widget = CornerWidget(
             self.platform,
@@ -206,6 +210,33 @@ class PulseApp:
         self._tray.start()
         # Sync HKCU startup key with the setting (e.g. after a reinstall to a new path).
         _sync_startup_key(self.platform, self.settings)
+        self._start_sync()
+
+    def _start_sync(self) -> None:
+        """Start PocketBase sync if all three requirements are met: setting enabled,
+        sync_url in config.yaml, and PULSE_PB_TOKEN in the environment."""
+        if not self.settings.get("sync_enabled"):
+            return
+        from .machine_config import MachineConfig
+        mc = MachineConfig.load()
+        if not mc.sync_url:
+            return
+        token = os.environ.get("PULSE_PB_TOKEN", "")
+        if not token:
+            return
+        from .sync import PocketBaseSync, SyncClient
+        client = SyncClient(mc.sync_url, token)
+        self._sync = PocketBaseSync(self.storage, client)
+        self._sync.start()
+
+    def _restart_sync_if_needed(self) -> None:
+        """Called after settings change: start or stop sync to match the new setting."""
+        enabled = self.settings.get("sync_enabled")
+        if self._sync is not None and not enabled:
+            self._sync.stop()
+            self._sync = None
+        elif self._sync is None and enabled:
+            self._start_sync()
 
     def _on_pause_resume(self) -> None:
         self._paused = not self._paused
@@ -216,6 +247,9 @@ class PulseApp:
     def _on_quit(self) -> None:
         """Tray Quit: stop the poll loop, destroy all windows, clean up."""
         self._stop.set()
+        if self._sync is not None:
+            self._sync.stop()
+            self._sync = None
         controllers = [
             self.widget, self.break_card, self.checkin,
             self.insights_window, self.settings_window, self.training_card,
@@ -237,6 +271,7 @@ class PulseApp:
         self.checkin.set_scale_max(self.scale_max)
         self._apply_theme_to_all()
         _sync_startup_key(self.platform, self.settings)
+        self._restart_sync_if_needed()
 
     def _apply_theme_to_all(self) -> None:
         """Inject current appearance CSS vars into every live pywebview window."""
