@@ -260,6 +260,24 @@ SETTING_DEFS: tuple[SettingDef, ...] = (
             "coarser.",
         ),
     ),
+    SettingDef(
+        key="focus_mode_enabled",
+        label="Focus Guard",
+        kind="bool",
+        default=False,
+        group="Focus Guard",
+        explainer=Explainer(
+            what="While on, the light layer shows a quiet corner countdown but never "
+            "escalates or pulses — you can wave it off or simply ignore it. "
+            "Training breaks wait until your focus block ends naturally.",
+            who="Tends to suit people who need 90+ minutes of unbroken concentration "
+            "and find mid-task interruptions very expensive to recover from.",
+            tradeoff="The light layer becomes advisory only, which makes it easier to "
+            "ignore entirely. Hydration and meal windows still fire on any break that "
+            "does land; the boundary break still arrives at the block's edge — the body "
+            "floor doesn't move.",
+        ),
+    ),
 )
 
 SETTING_BY_KEY: dict[str, SettingDef] = {d.key: d for d in SETTING_DEFS}

@@ -67,13 +67,15 @@ class PulseApp:
         self._persisted_active_s = 0.0  # active seconds already written to storage
         self._current_meal_window: str | None = None
 
-        self._training_pending = False  # BOUNDARY_DUE fired; widget in training mode
+        self._training_pending = False   # BOUNDARY_DUE fired; widget in training mode
+        self._training_deferred = False  # BOUNDARY_DUE fired while focus mode — queued
         self._in_training = False
         self._training_session_cursor = 0  # rotates through exercise category pairs
 
         self.widget = CornerWidget(
             self.platform,
             on_break_now=self._on_break_now,
+            on_wave_off=self._on_wave_off,
             start_hidden=True,
         )
         self.break_card = BreakCard(
@@ -170,8 +172,12 @@ class PulseApp:
             # Keep the corner countdown current while it's showing (ACTIVE-time based,
             # so it pauses when the person goes idle — re-pushed here every poll).
             if not self._in_break and state is SessionState.WARN:
+                focus_mode = self.settings.get("focus_mode_enabled")
                 remaining = max(0.0, self.config.light_interval_minutes * 60.0 - short_s)
-                self.widget.show_countdown(remaining, escalated=self._due or remaining <= 0)
+                # In focus mode the widget never escalates — stays quiet, purely advisory.
+                escalated = (self._due or remaining <= 0) and not focus_mode
+                self.widget.show_countdown(remaining, escalated=escalated)
+                self.widget.show_focus_mode(focus_mode)
 
             self._stop.wait(self.poll_interval)
 
@@ -187,16 +193,21 @@ class PulseApp:
             # The person took a real break on their own — stand down quietly.
             self._due = False
             self._training_pending = False
+            self._training_deferred = False  # natural break satisfies the deferred training
             if self._widget_visible:
                 self.widget.hide()
                 self._widget_visible = False
         elif event is EngineEvent.BOUNDARY_DUE:
             if self._can_offer_training() and not self._in_break and not self._in_training:
-                self._training_pending = True
-                if not self._widget_visible:
-                    self.widget.show()
-                    self._widget_visible = True
-                self.widget.show_training_ready()
+                if self.settings.get("focus_mode_enabled"):
+                    # Focus Guard: defer training to the next natural break — don't interrupt.
+                    self._training_deferred = True
+                else:
+                    self._training_pending = True
+                    if not self._widget_visible:
+                        self.widget.show()
+                        self._widget_visible = True
+                    self.widget.show_training_ready()
         # USEFUL_CHECK_DUE handled in step 9.
 
     # --- UI callbacks (GUI thread) --------------------------------------------
@@ -209,7 +220,8 @@ class PulseApp:
 
     def _on_break_now(self) -> None:
         """'Break now' / 'Do it' on the corner widget — routes to training or light break."""
-        if self._training_pending:
+        if self._training_pending or self._training_deferred:
+            self._training_deferred = False  # consume the deferred flag before routing
             self._on_training_now()
             return
         # Light break path — movement suggestion + hydration + optional meal question.
@@ -249,6 +261,14 @@ class PulseApp:
         """Meal-window answer received from the break card. Store it; the break
         continues normally from here — Python doesn't need to intervene further."""
         self.storage.record_meal_prompt(window_name, answered, extended_minutes)
+
+    def _on_wave_off(self) -> None:
+        """User dismissed the widget in Focus Guard mode — hide without starting a break.
+        The widget won't reappear until the next WARN cycle; _due and engine state are
+        untouched so the clock continues as normal."""
+        if self._widget_visible:
+            self.widget.hide()
+            self._widget_visible = False
 
     # --- training flow --------------------------------------------------------
 

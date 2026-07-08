@@ -16,6 +16,7 @@
   const countEl = document.getElementById("count");
   const subEl = document.getElementById("sub");
   const btn = document.getElementById("actionBtn");
+  const waveOffBtn = document.getElementById("waveOffBtn");
 
   const state = {
     phase: "countdown",   // countdown | due | timer | done | training
@@ -92,6 +93,11 @@
     }
   });
 
+  waveOffBtn.addEventListener("click", function () {
+    const a = api();
+    if (a) a.wave_off();
+  });
+
   // --- the interface Python drives via evaluate_js ---
   window.pulse = {
     // ACTIVE-time countdown; escalated => the mark has passed (phase "due").
@@ -115,6 +121,11 @@
     showTraining: function () {
       state.phase = "training";
       paint();
+    },
+    // Push focus mode state — suppresses amber escalation, shows wave-off button.
+    setFocusMode: function (active) {
+      card.setAttribute("data-focus", active ? "true" : "false");
+      waveOffBtn.hidden = !active;
     },
   };
 

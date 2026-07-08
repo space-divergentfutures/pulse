@@ -49,6 +49,10 @@ class _WidgetBridge:
         self._widget._fire("timer_finished")
         return {"ok": True}
 
+    def wave_off(self) -> dict:
+        self._widget._fire("wave_off")
+        return {"ok": True}
+
     def ready(self) -> dict:
         self._widget._ready = True
         return {"ok": True}
@@ -62,6 +66,7 @@ class CornerWidget:
         on_break_now: Callable[[], None] | None = None,
         on_done: Callable[[], None] | None = None,
         on_timer_finished: Callable[[], None] | None = None,
+        on_wave_off: Callable[[], None] | None = None,
         width: int = DEFAULT_WIDTH,
         height: int = DEFAULT_HEIGHT,
         margin: int = DEFAULT_MARGIN,
@@ -76,6 +81,7 @@ class CornerWidget:
             "break_now": on_break_now,
             "done": on_done,
             "timer_finished": on_timer_finished,
+            "wave_off": on_wave_off,
         }
         self._window = None
         self._ready = False
@@ -132,6 +138,10 @@ class CornerWidget:
     def show_training_ready(self) -> None:
         """Show the 'training break ready — whenever you're ready' state (§5b)."""
         self._eval("window.pulse.showTraining()")
+
+    def show_focus_mode(self, enabled: bool) -> None:
+        """Push focus-mode state to JS: suppresses amber pulse, shows wave-off button."""
+        self._eval(f"window.pulse.setFocusMode({json.dumps(bool(enabled))})")
 
     def show(self) -> None:
         if self._window is not None:

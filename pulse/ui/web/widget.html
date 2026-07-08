@@ -9,7 +9,8 @@
 <body>
   <!-- The corner countdown widget (spec §5a). Opaque rounded card: the spike proved
        per-pixel transparency is unreliable on Windows, so this is the shippable form. -->
-  <div class="card" id="card" data-phase="countdown">
+  <div class="card" id="card" data-phase="countdown" data-focus="false">
+    <button class="wave-off" id="waveOffBtn" hidden aria-label="Dismiss">×</button>
     <div class="top">
       <span class="label" id="label">Break in</span>
       <span class="count" id="count">--:--</span>
