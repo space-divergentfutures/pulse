@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PULSE — check-in</title>
+  <link rel="stylesheet" href="checkin.css">
+</head>
+<body>
+  <div class="card">
+    <!-- Stage 1 (§7): exactly one question, one tap. Then the graph, immediately. -->
+    <section class="view" id="rateView">
+      <div class="q">How did that block go?</div>
+      <div class="scale" id="scale"><!-- number buttons injected by JS --></div>
+      <button class="skip" id="skipBtn">skip</button>
+    </section>
+
+    <!-- The instant feedback is the reward. Dots from day 1; the unlock meter climbs. -->
+    <section class="view hidden" id="graphView">
+      <div class="graph-head">
+        <span class="graph-title">Your blocks</span>
+        <span class="graph-sub" id="graphSub"></span>
+      </div>
+      <div class="chart" id="chart"><!-- SVG injected by JS --></div>
+
+      <div class="meter-wrap">
+        <div class="meter-track"><div class="meter-fill" id="meterFill"></div></div>
+        <div class="meter-label" id="meterLabel"></div>
+      </div>
+
+      <button class="done" id="doneBtn">Done</button>
+    </section>
+  </div>
+  <script src="checkin.js"></script>
+</body>
+</html>

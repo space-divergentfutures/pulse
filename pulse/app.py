@@ -21,8 +21,11 @@ from .config import TimingConfig
 from .content import hydration_prompt_at, light_movement_at
 from .platform import get_platform
 from .platform.base import PlatformInterface
+from .reflection import graph_payload
 from .state_machine import EngineEvent, SessionEngine, SessionState
+from .storage import PulseStorage
 from .ui.break_card import BreakCard
+from .ui.checkin import CheckinCard
 from .ui.widget import CornerWidget
 
 
@@ -32,10 +35,15 @@ class PulseApp:
         config: TimingConfig | None = None,
         *,
         platform: PlatformInterface | None = None,
+        storage: PulseStorage | None = None,
+        db_path: str | None = None,
+        scale_max: int = 10,
         poll_interval_seconds: float = 5.0,
     ) -> None:
         self.config = config or TimingConfig()
         self.platform = platform or get_platform()
+        self.storage = storage or PulseStorage(db_path)
+        self.scale_max = scale_max
         self.poll_interval = poll_interval_seconds
 
         self.engine = SessionEngine(self.config)
@@ -47,6 +55,7 @@ class PulseApp:
         self._in_break = False
         self._move_cursor = 0
         self._hydration_cursor = 0
+        self._persisted_active_s = 0.0  # active seconds already written to storage
 
         self.widget = CornerWidget(
             self.platform,
@@ -56,6 +65,12 @@ class PulseApp:
         self.break_card = BreakCard(
             self.platform,
             on_done=self._on_break_done,
+        )
+        self.checkin = CheckinCard(
+            self.platform,
+            on_rating=self._on_rating,
+            on_close=self._on_checkin_close,
+            scale_max=self.scale_max,
         )
 
     # --- lifecycle -------------------------------------------------------------
@@ -67,6 +82,7 @@ class PulseApp:
         self.platform.prepare_high_dpi()
         self.widget.create()
         self.break_card.create()
+        self.checkin.create()
 
         def _startup() -> None:
             threading.Thread(target=self._poll_loop, daemon=True).start()
@@ -144,11 +160,36 @@ class PulseApp:
         )
 
     def _on_break_done(self) -> None:
-        """Break finished (honor-based). Step 4 inserts the one-tap check-in here."""
+        """Break finished (honor-based). The check-in rides on the break you're already
+        taking — one interruption, not two (§7)."""
         with self._lock:
             self.engine.complete_break()
+        self._persist_active_time()
         self.break_card.hide()
+        self.checkin.show_checkin()
+        # _in_break stays True across the check-in so the widget won't re-warn under it.
+
+    def _on_rating(self, value: int | None, skipped: bool) -> dict:
+        """Store the one-tap rating (or skip) and return the fresh graph payload so the
+        page can show the graph immediately — the instant feedback is the reward (§7)."""
+        with self._lock:
+            self.storage.add_checkin(value, skipped=skipped)
+            payload = graph_payload(self.storage, self.config, self.scale_max)
+        return payload
+
+    def _on_checkin_close(self) -> None:
+        self.checkin.hide()
         self._in_break = False
+
+    def _persist_active_time(self) -> None:
+        """Write the active minutes accrued since the last persist into today's row
+        (per-machine, additive — §8). Best-effort; safe to call often."""
+        with self._lock:
+            lifetime_s = self.engine.snapshot().lifetime_active_seconds
+        delta_s = lifetime_s - self._persisted_active_s
+        if delta_s > 0:
+            self.storage.add_active_minutes(delta_s / 60.0)
+            self._persisted_active_s = lifetime_s
 
 
 def main() -> None:

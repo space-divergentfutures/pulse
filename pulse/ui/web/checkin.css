@@ -1,0 +1,93 @@
+/* PULSE check-in + graph (spec §7). The feedback IS the point — this view is the
+   reward loop, so it should feel good to land on. Opaque rounded card (Step 0). */
+
+:root {
+  --bg: #12141a;
+  --card-a: #1b1f2a;
+  --card-b: #12141a;
+  --ink: #e8ebf2;
+  --muted: #8b93a7;
+  --accent: #7fd1c1;
+  --accent-btn: #2f6f63;
+  --accent-btn-hi: #3a8577;
+  --chip: #232838;
+  --grid: rgba(255,255,255,0.10);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  -webkit-user-select: none; user-select: none;
+  overflow: hidden; cursor: default; color: var(--ink);
+}
+
+.card {
+  width: 100%; height: 100%;
+  background: linear-gradient(160deg, var(--card-a) 0%, var(--card-b) 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+  padding: 16px 18px 14px;
+  display: flex; flex-direction: column;
+}
+
+.view { display: flex; flex-direction: column; gap: 12px; height: 100%; }
+.hidden { display: none; }
+
+/* the one-question view reads better centred than top-aligned with dead space below */
+#rateView { justify-content: center; gap: 16px; }
+
+/* --- rate view --- */
+.q { font-size: 16px; font-weight: 650; text-align: center; margin-top: 6px; }
+
+.scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.num {
+  appearance: none; border: 1px solid rgba(255,255,255,0.08);
+  background: var(--chip); color: var(--ink);
+  font-size: 16px; font-weight: 600; border-radius: 10px;
+  padding: 10px 0; cursor: pointer;
+  transition: background .1s ease, transform .06s ease, border-color .1s ease;
+}
+.num:hover { background: #2c3346; border-color: rgba(127,209,193,0.5); }
+.num:active { transform: translateY(1px); }
+
+.skip {
+  appearance: none; border: none; background: transparent; color: var(--muted);
+  font-size: 12px; cursor: pointer; padding: 4px; align-self: center;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.skip:hover { color: var(--ink); }
+
+/* --- graph view --- */
+.graph-head { display: flex; align-items: baseline; justify-content: space-between; }
+.graph-title { font-size: 13px; font-weight: 600; letter-spacing: .04em; }
+.graph-sub { font-size: 11px; color: var(--muted); }
+
+.chart { width: 100%; flex: 1 1 auto; min-height: 96px; }
+.chart svg { width: 100%; height: 100%; display: block; }
+
+.meter-wrap { display: flex; flex-direction: column; gap: 5px; }
+.meter-track {
+  width: 100%; height: 8px; border-radius: 5px;
+  background: rgba(255,255,255,0.08); overflow: hidden;
+}
+.meter-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #4f9d8e, var(--accent));
+  border-radius: 5px; transition: width .6s cubic-bezier(.2,.7,.2,1);
+}
+.meter-label { font-size: 11px; color: var(--muted); text-align: center; }
+.meter-label.unlocked { color: var(--accent); }
+
+.done {
+  appearance: none; border: none; cursor: pointer;
+  background: var(--accent-btn); color: #eafff8;
+  font-size: 13px; font-weight: 600; border-radius: 10px;
+  padding: 8px 0; width: 100%; margin-top: 4px;
+  transition: background .12s ease, transform .06s ease;
+}
+.done:hover { background: var(--accent-btn-hi); }
+.done:active { transform: translateY(1px); }
