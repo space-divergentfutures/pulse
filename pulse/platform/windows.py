@@ -177,3 +177,26 @@ class WindowsPlatform(PlatformInterface):
             and rect.right >= m.right
             and rect.bottom >= m.bottom
         )
+
+    # --- UI support ------------------------------------------------------------
+
+    def get_work_area(self) -> tuple[int, int, int, int]:
+        SPI_GETWORKAREA = 0x0030
+        rect = wintypes.RECT()
+        if not _user32.SystemParametersInfoW(
+            SPI_GETWORKAREA, 0, ctypes.byref(rect), 0
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return rect.left, rect.top, rect.right, rect.bottom
+
+    def prepare_high_dpi(self) -> None:
+        # Per-monitor-aware v2 keeps SPI_GETWORKAREA pixels and window placement in
+        # the same coordinate space; fall back to system-DPI-aware on older Windows.
+        try:
+            _shcore = ctypes.WinDLL("shcore", use_last_error=True)
+            _shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+        except Exception:
+            try:
+                _user32.SetProcessDPIAware()
+            except Exception:
+                pass

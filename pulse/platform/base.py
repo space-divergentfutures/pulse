@@ -70,3 +70,18 @@ class PlatformInterface(ABC):
         """True if the foreground window covers its whole monitor (exclusive or
         borderless fullscreen) — another defer condition so a break never lands
         mid-recording or mid-presentation (spec §4)."""
+
+    # --- UI support (not one of the five detection capabilities) ---------------
+    # Placing the corner widget "where the clock already lives" (§5a) is inherently
+    # OS-specific, so these live behind the same interface for the same porting reason.
+
+    @abstractmethod
+    def get_work_area(self) -> tuple[int, int, int, int]:
+        """(left, top, right, bottom) of the primary monitor's work area, with the
+        taskbar excluded — so the corner widget can hug the bottom-right corner next
+        to the system clock."""
+
+    def prepare_high_dpi(self) -> None:
+        """Make the process DPI-aware before any window is created, so work-area
+        pixels and window placement agree on high-DPI displays. Default no-op."""
+        return None

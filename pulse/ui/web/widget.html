@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PULSE</title>
+  <link rel="stylesheet" href="widget.css">
+</head>
+<body>
+  <!-- The corner countdown widget (spec §5a). Opaque rounded card: the spike proved
+       per-pixel transparency is unreliable on Windows, so this is the shippable form. -->
+  <div class="card" id="card" data-phase="countdown">
+    <div class="top">
+      <span class="label" id="label">Break in</span>
+      <span class="count" id="count">--:--</span>
+    </div>
+    <button class="action" id="actionBtn">Break now</button>
+    <div class="sub" id="sub">finish your thought</div>
+  </div>
+  <script src="widget.js"></script>
+</body>
+</html>

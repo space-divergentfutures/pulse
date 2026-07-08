@@ -1,0 +1,86 @@
+/* PULSE corner widget (spec §5a).
+   Calm by design — this is for brains that don't want to be ambushed. The escalation
+   at "time to move" is a gentle amber pulse, never an alarm. Opaque rounded card,
+   because the Step 0 spike proved WebView2 per-pixel transparency is unreliable. */
+
+:root {
+  --bg: #12141a;
+  --card-a: #1b1f2a;
+  --card-b: #12141a;
+  --ink: #e8ebf2;
+  --muted: #8b93a7;
+  --accent: #7fd1c1;      /* calm teal — the "you're fine" colour */
+  --accent-btn: #2f6f63;
+  --accent-btn-hi: #3a8577;
+  --warn: #f2b84b;        /* amber — the "time to move" colour */
+  --done: #7fd1a0;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  -webkit-user-select: none; user-select: none;
+  overflow: hidden;
+  cursor: default;
+}
+
+.card {
+  width: 100%; height: 100%;
+  background: linear-gradient(160deg, var(--card-a) 0%, var(--card-b) 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.45);
+  color: var(--ink);
+  display: flex; flex-direction: column;
+  padding: 11px 13px 10px; gap: 7px;
+}
+
+.top { display: flex; align-items: baseline; justify-content: space-between; }
+
+.label {
+  font-size: 11px; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+
+.count {
+  font-size: 33px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums; color: var(--accent);
+  transition: color .2s ease;
+}
+
+.action {
+  appearance: none; border: none; cursor: pointer;
+  background: var(--accent-btn); color: #eafff8;
+  font-size: 13px; font-weight: 600; border-radius: 9px;
+  padding: 8px 0; width: 100%;
+  transition: background .12s ease, transform .06s ease;
+}
+.action:hover { background: var(--accent-btn-hi); }
+.action:active { transform: translateY(1px); }
+
+.sub {
+  font-size: 10.5px; color: var(--muted); min-height: 13px; text-align: center;
+}
+
+/* --- "time to move": the mark has passed. Gentle escalation, never a takeover. --- */
+.card[data-phase="due"] .count { color: var(--warn); animation: pulse 1.6s ease-in-out infinite; }
+.card[data-phase="due"] .label { color: var(--warn); }
+.card[data-phase="due"] { border-color: rgba(242,184,75,0.35); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+/* --- self-started movement timer (§5a point 3) --- */
+.card[data-phase="timer"] .count { color: var(--accent); }
+
+/* --- done --- */
+.card[data-phase="done"] .count { color: var(--done); }
+
+@media (prefers-reduced-motion: reduce) {
+  .card[data-phase="due"] .count { animation: none; }
+}
