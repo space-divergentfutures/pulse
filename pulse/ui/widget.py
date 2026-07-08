@@ -129,6 +129,10 @@ class CornerWidget:
     def show_done(self) -> None:
         self._eval("window.pulse.showDone()")
 
+    def show_training_ready(self) -> None:
+        """Show the 'training break ready — whenever you're ready' state (§5b)."""
+        self._eval("window.pulse.showTraining()")
+
     def show(self) -> None:
         if self._window is not None:
             self._window.show()

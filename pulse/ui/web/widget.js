@@ -18,7 +18,7 @@
   const btn = document.getElementById("actionBtn");
 
   const state = {
-    phase: "countdown",   // countdown | due | timer | done
+    phase: "countdown",   // countdown | due | timer | done | training
     remaining: 0,         // seconds
     timerEndAt: null,     // ms epoch, for the self-started timer
     timerFired: false,
@@ -57,6 +57,11 @@
       subEl.textContent = "back to it when you're ready";
       btn.textContent = "Done";
       countEl.textContent = "✓";
+    } else if (state.phase === "training") {
+      labelEl.textContent = "Training break";
+      subEl.textContent = "finish your thought";
+      btn.textContent = "Do it";
+      countEl.textContent = "90 min";
     }
   }
 
@@ -105,6 +110,10 @@
     },
     showDone: function () {
       state.phase = "done";
+      paint();
+    },
+    showTraining: function () {
+      state.phase = "training";
       paint();
     },
   };

@@ -1,0 +1,134 @@
+{
+  "categories": [
+    {
+      "id": "hinge_power",
+      "name": "Hinge / Power",
+      "exercises": [
+        {
+          "id": "kb_swings",
+          "name": "KB Swings",
+          "equipment": ["kettlebell"],
+          "levels": [
+            {"level": 1, "reps": "15 reps", "cue": "Hinge at the hips, drive with glutes"},
+            {"level": 2, "reps": "25 reps", "cue": "Explosive hip snap, soft landing"},
+            {"level": 3, "reps": "35 reps", "cue": "One-arm, or heavier — same hinge mechanics"}
+          ]
+        },
+        {
+          "id": "kb_deadlift",
+          "name": "KB Deadlift",
+          "equipment": ["kettlebell"],
+          "levels": [
+            {"level": 1, "reps": "12 reps", "cue": "Hinge back, chest up, push the floor away"},
+            {"level": 2, "reps": "20 reps", "cue": "Add load or slow the negative to 3 s"},
+            {"level": 3, "reps": "8 reps/side", "cue": "Single-leg — keep hips square"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "push",
+      "name": "Push",
+      "exercises": [
+        {
+          "id": "pushups",
+          "name": "Pushups",
+          "equipment": [],
+          "levels": [
+            {"level": 1, "reps": "10 reps", "cue": "Straight body, elbows at 45°"},
+            {"level": 2, "reps": "20 reps", "cue": "Controlled — 2 s down, 1 s pause"},
+            {"level": 3, "reps": "15 reps", "cue": "Feet elevated, or add load"}
+          ]
+        },
+        {
+          "id": "kb_ohp",
+          "name": "KB Overhead Press",
+          "equipment": ["kettlebell"],
+          "levels": [
+            {"level": 1, "reps": "6 reps/side", "cue": "Stack wrist over elbow over shoulder"},
+            {"level": 2, "reps": "10 reps/side", "cue": "Full lockout, ribs down"},
+            {"level": 3, "reps": "8 reps/side", "cue": "Push-press or heavier — same alignment"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "squat_legs",
+      "name": "Squat / Legs",
+      "exercises": [
+        {
+          "id": "bw_squats",
+          "name": "Bodyweight Squats",
+          "equipment": [],
+          "levels": [
+            {"level": 1, "reps": "20 reps", "cue": "Knees track toes, chest up"},
+            {"level": 2, "reps": "35 reps", "cue": "Pause 2 s at bottom"},
+            {"level": 3, "reps": "20 reps", "cue": "Jump squats — land softly, absorb on the way down"}
+          ]
+        },
+        {
+          "id": "goblet_squat",
+          "name": "Goblet Squat",
+          "equipment": ["kettlebell"],
+          "levels": [
+            {"level": 1, "reps": "10 reps", "cue": "Hold KB at chest, elbows inside knees at bottom"},
+            {"level": 2, "reps": "18 reps", "cue": "Slow: 3 s down, 1 s pause, 2 s up"},
+            {"level": 3, "reps": "25 reps", "cue": "Heavier bell, same controlled pace"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pull_hang",
+      "name": "Pull / Hang",
+      "exercises": [
+        {
+          "id": "dead_hang",
+          "name": "Dead Hang",
+          "equipment": ["pull-up bar"],
+          "levels": [
+            {"level": 1, "duration": "20s", "cue": "Relax the traps, breathe, let gravity decompress"},
+            {"level": 2, "duration": "45s", "cue": "Actively pack the shoulders — don't just dangle"},
+            {"level": 3, "duration": "75s", "cue": "Scapular pull-ups every 15 s to build active endurance"}
+          ]
+        },
+        {
+          "id": "rows",
+          "name": "Band / Doorway Rows",
+          "equipment": ["resistance band"],
+          "levels": [
+            {"level": 1, "reps": "12 reps", "cue": "Pull elbows back and down, squeeze shoulder blades"},
+            {"level": 2, "reps": "20 reps", "cue": "Increase band tension or change the angle"},
+            {"level": 3, "reps": "12 reps", "cue": "Pause 2 s at top — shoulder blades fully retracted"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "core_carry",
+      "name": "Core / Carry",
+      "exercises": [
+        {
+          "id": "plank",
+          "name": "Plank",
+          "equipment": [],
+          "levels": [
+            {"level": 1, "duration": "40s", "cue": "Squeeze glutes, don't hold your breath"},
+            {"level": 2, "duration": "75s", "cue": "Lift one leg for 10 s, alternate every 10 s"},
+            {"level": 3, "duration": "60s", "cue": "RKC plank: pull elbows toward toes, squeeze everything"}
+          ]
+        },
+        {
+          "id": "kb_carry",
+          "name": "KB Suitcase Carry",
+          "equipment": ["kettlebell"],
+          "levels": [
+            {"level": 1, "reps": "40 steps/side", "cue": "Stand tall, don't lean toward the weight"},
+            {"level": 2, "reps": "60 steps/side", "cue": "Increase load, same upright posture"},
+            {"level": 3, "reps": "40 steps/side", "cue": "Double carry — one bell each hand, walk steady"}
+          ]
+        }
+      ]
+    }
+  ]
+}

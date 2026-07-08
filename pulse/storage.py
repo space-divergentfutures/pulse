@@ -62,6 +62,30 @@ CREATE TABLE IF NOT EXISTS meal_prompts (
 CREATE INDEX IF NOT EXISTS idx_meal_prompts_day
     ON meal_prompts (machine_id, date, window);
 
+-- Training break log (§5b, §9). Each completed/skipped training break gets a row.
+CREATE TABLE IF NOT EXISTS breaks (
+    id          TEXT PRIMARY KEY,
+    machine_id  TEXT NOT NULL,
+    ts          REAL NOT NULL,
+    day         TEXT NOT NULL,
+    layer       TEXT NOT NULL,   -- 'light' | 'training' | 'big'
+    enforcement TEXT NOT NULL,   -- 'corner_countdown' | 'session_card' | 'hard_lock' | 'honor'
+    outcome     TEXT NOT NULL,   -- 'completed' | 'skipped'
+    duration_s  REAL
+);
+CREATE INDEX IF NOT EXISTS idx_breaks_day ON breaks (machine_id, day, layer);
+
+-- Per-exercise progression (L1/L2/L3 — §5b, §9).
+CREATE TABLE IF NOT EXISTS exercise_progress (
+    machine_id   TEXT NOT NULL,
+    exercise_id  TEXT NOT NULL,
+    level        INTEGER NOT NULL DEFAULT 1,
+    clean_streak INTEGER NOT NULL DEFAULT 0,
+    consec_skips INTEGER NOT NULL DEFAULT 0,
+    pain_until   TEXT,   -- ISO date; NULL = not on pain cooldown
+    PRIMARY KEY (machine_id, exercise_id)
+);
+
 -- All user-facing settings live here (§8: config.yaml is machine plumbing only).
 -- Values are JSON-encoded strings, decoded by pulse.settings.
 CREATE TABLE IF NOT EXISTS settings (
@@ -260,6 +284,157 @@ class PulseStorage:
             r["key"]: r["value"]
             for r in self._conn.execute("SELECT key, value FROM settings").fetchall()
         }
+
+    # --- breaks (training log) -------------------------------------------------
+
+    def record_break(
+        self,
+        layer: str,
+        enforcement: str,
+        outcome: str,
+        duration_s: float | None = None,
+        ts: float | None = None,
+    ) -> str:
+        mid = str(uuid.uuid4())
+        ts = time.time() if ts is None else ts
+        d = _date.fromtimestamp(ts).isoformat()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO breaks (id, machine_id, ts, day, layer, enforcement, outcome, duration_s) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (mid, self.machine_id, ts, d, layer, enforcement, outcome, duration_s),
+            )
+            self._conn.commit()
+        return mid
+
+    def training_count_today(self, day: str | None = None) -> int:
+        """Number of completed training or big breaks today — counts toward the cap."""
+        d = day or _today_iso()
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM breaks "
+            "WHERE machine_id = ? AND day = ? AND layer IN ('training', 'big') "
+            "AND outcome = 'completed'",
+            (self.machine_id, d),
+        ).fetchone()
+        return row["n"]
+
+    # --- exercise progression --------------------------------------------------
+
+    def exercise_level(self, exercise_id: str) -> int:
+        """Current level (1/2/3) for an exercise, creating a row at L1 if missing."""
+        row = self._conn.execute(
+            "SELECT level FROM exercise_progress WHERE machine_id = ? AND exercise_id = ?",
+            (self.machine_id, exercise_id),
+        ).fetchone()
+        if row is None:
+            with self._lock:
+                self._conn.execute(
+                    "INSERT OR IGNORE INTO exercise_progress "
+                    "(machine_id, exercise_id, level, clean_streak, consec_skips) "
+                    "VALUES (?, ?, 1, 0, 0)",
+                    (self.machine_id, exercise_id),
+                )
+                self._conn.commit()
+            return 1
+        return row["level"]
+
+    def record_exercise_done(self, exercise_id: str) -> dict:
+        """Record a clean completion. Auto-promotes after 6 consecutive completions.
+        Returns ``{level_changed: bool, new_level: int}``."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT level, clean_streak FROM exercise_progress "
+                "WHERE machine_id = ? AND exercise_id = ?",
+                (self.machine_id, exercise_id),
+            ).fetchone()
+            if row is None:
+                self._conn.execute(
+                    "INSERT INTO exercise_progress "
+                    "(machine_id, exercise_id, level, clean_streak, consec_skips) "
+                    "VALUES (?, ?, 1, 1, 0)",
+                    (self.machine_id, exercise_id),
+                )
+                self._conn.commit()
+                return {"level_changed": False, "new_level": 1}
+
+            new_streak = row["clean_streak"] + 1
+            new_level = row["level"]
+            level_changed = False
+            if new_streak >= 6 and new_level < 3:
+                new_level += 1
+                new_streak = 0
+                level_changed = True
+
+            self._conn.execute(
+                "UPDATE exercise_progress "
+                "SET level = ?, clean_streak = ?, consec_skips = 0 "
+                "WHERE machine_id = ? AND exercise_id = ?",
+                (new_level, new_streak, self.machine_id, exercise_id),
+            )
+            self._conn.commit()
+        return {"level_changed": level_changed, "new_level": new_level}
+
+    def record_exercise_skip(self, exercise_id: str) -> dict:
+        """Record a skip. Auto-deloads after 2 consecutive skips (no shame messaging).
+        Returns ``{level_changed: bool, new_level: int}``."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT level, consec_skips FROM exercise_progress "
+                "WHERE machine_id = ? AND exercise_id = ?",
+                (self.machine_id, exercise_id),
+            ).fetchone()
+            if row is None:
+                self._conn.execute(
+                    "INSERT INTO exercise_progress "
+                    "(machine_id, exercise_id, level, clean_streak, consec_skips) "
+                    "VALUES (?, ?, 1, 0, 1)",
+                    (self.machine_id, exercise_id),
+                )
+                self._conn.commit()
+                return {"level_changed": False, "new_level": 1}
+
+            new_skips = row["consec_skips"] + 1
+            new_level = row["level"]
+            level_changed = False
+            if new_skips >= 2 and new_level > 1:
+                new_level -= 1
+                new_skips = 0
+                level_changed = True
+
+            self._conn.execute(
+                "UPDATE exercise_progress "
+                "SET level = ?, clean_streak = 0, consec_skips = ? "
+                "WHERE machine_id = ? AND exercise_id = ?",
+                (new_level, new_skips, self.machine_id, exercise_id),
+            )
+            self._conn.commit()
+        return {"level_changed": level_changed, "new_level": new_level}
+
+    def record_exercise_pain(self, exercise_id: str, days: int = 7) -> None:
+        """Flag pain — removes this exercise from rotation for `days` days."""
+        from datetime import date as _d2, timedelta
+        pain_until = (_d2.today() + timedelta(days=days)).isoformat()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO exercise_progress "
+                "(machine_id, exercise_id, level, clean_streak, consec_skips, pain_until) "
+                "VALUES (?, ?, 1, 0, 1, ?) "
+                "ON CONFLICT(machine_id, exercise_id) DO UPDATE SET "
+                "pain_until = excluded.pain_until, consec_skips = consec_skips + 1",
+                (self.machine_id, exercise_id, pain_until),
+            )
+            self._conn.commit()
+
+    def is_pain_cooldown(self, exercise_id: str) -> bool:
+        from datetime import date as _d2
+        row = self._conn.execute(
+            "SELECT pain_until FROM exercise_progress "
+            "WHERE machine_id = ? AND exercise_id = ?",
+            (self.machine_id, exercise_id),
+        ).fetchone()
+        if row is None or row["pain_until"] is None:
+            return False
+        return row["pain_until"] >= _d2.today().isoformat()
 
     # --- lifecycle -------------------------------------------------------------
 

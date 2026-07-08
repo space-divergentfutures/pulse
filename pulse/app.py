@@ -26,10 +26,12 @@ from .reflection import graph_payload
 from .settings import Settings
 from .state_machine import EngineEvent, SessionEngine, SessionState
 from .storage import PulseStorage
+from .training import big_break_payload, pick_big_break_options, pick_session, session_payload
 from .ui.break_card import BreakCard
 from .ui.checkin import CheckinCard
 from .ui.firstrun import FirstRunWindow
 from .ui.settings_window import SettingsWindow
+from .ui.training_card import TrainingCard
 from .ui.widget import CornerWidget
 
 
@@ -65,6 +67,10 @@ class PulseApp:
         self._persisted_active_s = 0.0  # active seconds already written to storage
         self._current_meal_window: str | None = None
 
+        self._training_pending = False  # BOUNDARY_DUE fired; widget in training mode
+        self._in_training = False
+        self._training_session_cursor = 0  # rotates through exercise category pairs
+
         self.widget = CornerWidget(
             self.platform,
             on_break_now=self._on_break_now,
@@ -84,6 +90,13 @@ class PulseApp:
         self.settings_window = SettingsWindow(
             self.settings, on_changed=self._reload_config_from_settings
         )
+        self.training_card = TrainingCard(
+            self.platform,
+            on_exercise_outcome=self._on_exercise_outcome,
+            on_session_complete=self._on_training_complete,
+            on_close=self._on_training_close,
+            on_big_break_done=self._on_big_break_done,
+        )
         self._firstrun: FirstRunWindow | None = None
 
     # --- lifecycle -------------------------------------------------------------
@@ -97,6 +110,7 @@ class PulseApp:
         self.break_card.create()
         self.checkin.create()
         self.settings_window.create()
+        self.training_card.create()
 
         # First launch walks through the core choices once, with the explainers (§6).
         if not self.settings.first_run_complete:
@@ -172,17 +186,33 @@ class PulseApp:
         elif event is EngineEvent.AWAY_RESET:
             # The person took a real break on their own — stand down quietly.
             self._due = False
+            self._training_pending = False
             if self._widget_visible:
                 self.widget.hide()
                 self._widget_visible = False
-        # BOUNDARY_DUE and USEFUL_CHECK_DUE are handled in later build steps.
+        elif event is EngineEvent.BOUNDARY_DUE:
+            if self._can_offer_training() and not self._in_break and not self._in_training:
+                self._training_pending = True
+                if not self._widget_visible:
+                    self.widget.show()
+                    self._widget_visible = True
+                self.widget.show_training_ready()
+        # USEFUL_CHECK_DUE handled in step 9.
 
     # --- UI callbacks (GUI thread) --------------------------------------------
 
+    def _can_offer_training(self) -> bool:
+        if not self.settings.get("training_enabled"):
+            return False
+        cap = int(self.config.max_training_sessions_per_day)
+        return self.storage.training_count_today() < cap
+
     def _on_break_now(self) -> None:
-        """User hit "Break now" on the corner widget. Start a self-timed light break
-        with a movement suggestion + hydration line. If inside a meal window and the
-        window hasn't been answered today, prepend the meal question (§5d)."""
+        """'Break now' / 'Do it' on the corner widget — routes to training or light break."""
+        if self._training_pending:
+            self._on_training_now()
+            return
+        # Light break path — movement suggestion + hydration + optional meal question.
         with self._lock:
             self.engine.start_break()
         self._due = False
@@ -219,6 +249,68 @@ class PulseApp:
         """Meal-window answer received from the break card. Store it; the break
         continues normally from here — Python doesn't need to intervene further."""
         self.storage.record_meal_prompt(window_name, answered, extended_minutes)
+
+    # --- training flow --------------------------------------------------------
+
+    def _on_training_now(self) -> None:
+        """User accepted a training break. Hide widget, pick a session, show card."""
+        self._training_pending = False
+        self._in_training = True
+        if self._widget_visible:
+            self.widget.hide()
+            self._widget_visible = False
+
+        enforcement = self.settings.get("enforcement_training")
+        hard_lock = enforcement == "hard_lock"
+
+        session = pick_session(self.storage, self._training_session_cursor)
+        bb_opts = pick_big_break_options(3)
+
+        # Both regular session payload and big_break options travel together so the
+        # get-ready screen's "go outside" button can switch without another round-trip.
+        payload = session_payload(session, hard_lock=hard_lock)
+        payload["options"] = big_break_payload(bb_opts)["options"]
+        self.training_card.start_session(payload)
+
+    def _on_exercise_outcome(self, exercise_id: str, outcome: str) -> dict:
+        """Record each exercise's outcome and return progression data to the JS."""
+        if outcome == "done":
+            result = self.storage.record_exercise_done(exercise_id)
+        elif outcome == "skip":
+            result = self.storage.record_exercise_skip(exercise_id)
+        elif outcome == "pain":
+            self.storage.record_exercise_pain(exercise_id)
+            result = self.storage.record_exercise_skip(exercise_id)
+        else:
+            result = {"level_changed": False, "new_level": 1}
+        return result
+
+    def _on_training_complete(self, outcomes: list) -> None:
+        """All exercises done. Record the break, persist active time, queue check-in."""
+        enforcement = self.settings.get("enforcement_training")
+        self.storage.record_break("training", enforcement, "completed")
+        with self._lock:
+            self.engine.record_training_session()
+        self._training_session_cursor += 1
+        self._persist_active_time()
+
+    def _on_training_close(self) -> None:
+        """Training card closed after completion — show check-in."""
+        self.training_card.hide()
+        self._in_training = False
+        self.checkin.show_checkin()
+
+    def _on_big_break_done(self) -> None:
+        """12-min Big Break finished. Record, persist, queue check-in."""
+        enforcement = self.settings.get("enforcement_training")
+        self.storage.record_break("big", enforcement, "completed")
+        with self._lock:
+            self.engine.record_training_session()
+        self._training_session_cursor += 1
+        self._persist_active_time()
+        self.training_card.hide()
+        self._in_training = False
+        self.checkin.show_checkin()
 
     def _on_break_done(self) -> None:
         """Break finished (honor-based). The check-in rides on the break you're already

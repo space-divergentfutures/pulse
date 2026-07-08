@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PULSE — Training</title>
+  <link rel="stylesheet" href="training_card.css">
+</head>
+<body>
+  <!-- Training card (spec §5b). One window, five phases:
+       getready → session → complete   (regular training session)
+       getready → bigbreak_pick → bigbreak_timer  (Big Break variant)
+
+       For hard-lock mode: "Skip" button is hidden; otherwise honor-based. -->
+
+  <!-- PHASE: Get-ready (90s countdown before the session) -->
+  <div id="phaseGetready" class="card" hidden>
+    <div class="kicker" id="grKicker">Training break</div>
+    <div class="gr-session" id="grSession"><!-- filled by JS --></div>
+    <div class="gr-timer-row">
+      <span class="gr-timer-label">Starting in</span>
+      <span class="gr-timer" id="grTimer">1:30</span>
+    </div>
+    <button class="action" id="grReady">I'm ready — start now</button>
+    <button class="link-btn" id="grBigBreak">Or, go outside for 12 min →</button>
+  </div>
+
+  <!-- PHASE: Session (exercises one by one) -->
+  <div id="phaseSession" class="card" hidden>
+    <div class="sess-progress" id="sessProgress">Exercise 1 of 2</div>
+    <div class="sess-name" id="sessName">KB Swings</div>
+    <div class="sess-meta">
+      <span class="level-badge" id="sessLevel">L2</span>
+      <span class="sess-work" id="sessWork">25 reps</span>
+    </div>
+    <div class="sess-cue" id="sessCue">Explosive hip snap, soft landing</div>
+    <div class="sess-timer-row" id="sessTimerRow" hidden>
+      <span class="sess-timer" id="sessTimer">0:45</span>
+    </div>
+    <button class="action" id="sessDone">Done ✓</button>
+    <div class="sess-secondary">
+      <button class="link-btn" id="sessSkip">Skip this exercise</button>
+      <button class="link-btn pain-btn" id="sessPain">🚩 Pain</button>
+    </div>
+  </div>
+
+  <!-- PHASE: Complete -->
+  <div id="phaseComplete" class="card" hidden>
+    <div class="kicker">Session complete</div>
+    <div class="complete-check">✓</div>
+    <div class="complete-msg" id="completeMsg"><!-- filled by JS --></div>
+    <button class="action" id="completeClose">Close</button>
+  </div>
+
+  <!-- PHASE: Big Break — option picker -->
+  <div id="phaseBigPick" class="card" hidden>
+    <div class="kicker">Big Break — pick your 12 minutes</div>
+    <div class="big-options" id="bigOptions"><!-- filled by JS --></div>
+  </div>
+
+  <!-- PHASE: Big Break — timer -->
+  <div id="phaseBigTimer" class="card" hidden>
+    <div class="kicker">Big Break</div>
+    <div class="big-name" id="bigName">Sprint Intervals</div>
+    <div class="big-desc" id="bigDesc"></div>
+    <div class="big-cue"  id="bigCue"></div>
+    <div class="big-timer" id="bigTimer">12:00</div>
+    <button class="action" id="bigDone">Done — I'm back</button>
+  </div>
+
+  <script src="training_card.js"></script>
+</body>
+</html>
