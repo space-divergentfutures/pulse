@@ -17,6 +17,9 @@ __pycache__/
 pulse.db*
 config.yaml
 
+# Spike runtime artifact
+spike/spike_events.log
+
 # Packaging
 build/
 dist/
