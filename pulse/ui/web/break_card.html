@@ -9,8 +9,42 @@
 <body>
   <!-- Light break card (spec §5a, §5d). A gentle corner card, never a screen takeover.
        Movement suggestion + hydration (which rides on every break) + a self-started
-       timer. Doing/rating is honor-based. -->
-  <div class="card" id="card">
+       timer. Doing/rating is honor-based.
+
+       When a meal window is active and unanswered, the meal question phase is shown
+       first (§5d: "have you eaten today?"). One question, one tap, then the break
+       continues. -->
+
+  <!-- Meal question phase — shown only inside a meal window (§5d) -->
+  <div id="mealPhase" class="card" hidden>
+
+    <!-- State A: initial question -->
+    <div id="mealQuestion">
+      <div class="meal-icon">🍽</div>
+      <div class="meal-hd">Have you eaten today?</div>
+      <div class="meal-sub">First break of the lunch window — quick check.</div>
+      <button id="mealYes" class="action action-meal-yes">Yes, I'm good</button>
+      <button id="mealNo"  class="action action-meal-no">Not yet</button>
+      <button id="mealDefer" class="link-btn">not now — remind me next break</button>
+    </div>
+
+    <!-- State B: duration picker (replaces question after "Not yet") -->
+    <div id="mealPicker" hidden>
+      <div class="meal-hd">Go make something.</div>
+      <div class="meal-sub">How long do you need?</div>
+      <div class="picker-row">
+        <button id="pickMinus" class="pick-btn">−</button>
+        <span class="picker-val"><span id="pickNum">20</span><span class="picker-unit"> min</span></span>
+        <button id="pickPlus"  class="pick-btn">+</button>
+      </div>
+      <button id="mealGo" class="action">Start food break</button>
+      <button id="mealSkip" class="link-btn">actually, just the regular break</button>
+    </div>
+
+  </div>
+
+  <!-- Normal break content (shown once meal phase is dismissed, or for non-meal breaks) -->
+  <div id="breakContent" class="card" hidden>
     <div class="head">
       <span class="kicker" id="kicker">Light break</span>
       <span class="timer" id="timer">1:30</span>
@@ -28,6 +62,7 @@
     <button class="action" id="doneBtn">Done</button>
     <div class="honor" id="honor">move if you can — it's yours, do it your way</div>
   </div>
+
   <script src="break_card.js"></script>
 </body>
 </html>

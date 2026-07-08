@@ -3,6 +3,9 @@
 A modest bottom-right card shown when a light break starts — movement suggestion,
 hydration (rides on every break), and the self-started timer. Never a screen takeover;
 the light layer is a gentle nudge, and doing/rating is honor-based.
+
+When the break starts inside a meal window (§5d), the card shows the meal question
+first ("have you eaten today?") and then transitions to the normal break content.
 """
 
 from __future__ import annotations
@@ -18,9 +21,10 @@ from . import WEB_DIR
 _BREAK_HTML = WEB_DIR / "break_card.html"
 
 DEFAULT_WIDTH = 320
-# outer; WebView2 frameless chrome is ~16w/39h, so this yields a ~304x221 client area —
-# room for the ~208px of content plus a longer suggestion line wrapping to two rows.
-DEFAULT_HEIGHT = 260
+# Outer height. The meal question phase needs ~264px client area; adding the ~39px
+# WebView2 frameless chrome overhead gives 303px — rounded up to 320 for breathing room.
+# Normal breaks comfortably fit in this height too.
+DEFAULT_HEIGHT = 320
 DEFAULT_MARGIN = 12
 
 
@@ -36,6 +40,24 @@ class _BreakBridge:
         self._card._fire("timer_finished")
         return {"ok": True}
 
+    def meal_yes(self) -> dict:
+        cb = self._card._on_meal_settled_cb
+        if cb:
+            cb(self._card._meal_window, "yes", None)
+        return {"ok": True}
+
+    def meal_no(self, minutes: float) -> dict:
+        cb = self._card._on_meal_settled_cb
+        if cb:
+            cb(self._card._meal_window, "no", float(minutes))
+        return {"ok": True}
+
+    def meal_deferred(self) -> dict:
+        cb = self._card._on_meal_settled_cb
+        if cb:
+            cb(self._card._meal_window, "deferred", None)
+        return {"ok": True}
+
     def ready(self) -> dict:
         self._card._ready = True
         return {"ok": True}
@@ -48,6 +70,7 @@ class BreakCard:
         *,
         on_done: Callable[[], None] | None = None,
         on_timer_finished: Callable[[], None] | None = None,
+        on_meal_settled: Callable[[str, str, float | None], None] | None = None,
         width: int = DEFAULT_WIDTH,
         height: int = DEFAULT_HEIGHT,
         margin: int = DEFAULT_MARGIN,
@@ -57,6 +80,8 @@ class BreakCard:
         self._height = height
         self._margin = margin
         self._callbacks = {"done": on_done, "timer_finished": on_timer_finished}
+        self._on_meal_settled_cb = on_meal_settled
+        self._meal_window: str = ""  # set by start_break(); read in bridge callbacks
         self._window = None
         self._ready = False
 
@@ -93,7 +118,13 @@ class BreakCard:
         seconds: float,
         kicker: str = "Light break",
         honor: str = "move if you can — it's yours, do it your way",
+        meal_prompt: bool = False,
+        meal_window: str = "",
+        meal_min_minutes: int = 10,
+        meal_max_minutes: int = 45,
+        meal_default_minutes: int = 20,
     ) -> None:
+        self._meal_window = meal_window
         payload = json.dumps(
             {
                 "kicker": kicker,
@@ -102,6 +133,11 @@ class BreakCard:
                 "hydration": hydration,
                 "honor": honor,
                 "seconds": float(seconds),
+                "mealPrompt": meal_prompt,
+                "mealWindow": meal_window,
+                "mealMin": meal_min_minutes,
+                "mealMax": meal_max_minutes,
+                "mealDefault": meal_default_minutes,
             }
         )
         self._eval(f"window.pulse.startBreak({payload})")

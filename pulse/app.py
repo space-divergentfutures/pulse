@@ -19,6 +19,7 @@ import webview
 
 from .config import TimingConfig
 from .content import hydration_prompt_at, light_movement_at
+from .meal import active_window_now
 from .platform import get_platform
 from .platform.base import PlatformInterface
 from .reflection import graph_payload
@@ -62,6 +63,7 @@ class PulseApp:
         self._move_cursor = 0
         self._hydration_cursor = 0
         self._persisted_active_s = 0.0  # active seconds already written to storage
+        self._current_meal_window: str | None = None
 
         self.widget = CornerWidget(
             self.platform,
@@ -71,6 +73,7 @@ class PulseApp:
         self.break_card = BreakCard(
             self.platform,
             on_done=self._on_break_done,
+            on_meal_settled=self._on_meal_settled,
         )
         self.checkin = CheckinCard(
             self.platform,
@@ -178,7 +181,8 @@ class PulseApp:
 
     def _on_break_now(self) -> None:
         """User hit "Break now" on the corner widget. Start a self-timed light break
-        with a movement suggestion + hydration line."""
+        with a movement suggestion + hydration line. If inside a meal window and the
+        window hasn't been answered today, prepend the meal question (§5d)."""
         with self._lock:
             self.engine.start_break()
         self._due = False
@@ -192,12 +196,29 @@ class PulseApp:
         self._move_cursor += 1
         self._hydration_cursor += 1
 
+        meal_prompt = False
+        self._current_meal_window = None
+        if self.settings.get("meal_windows_enabled"):
+            win = active_window_now()
+            if win and not self.storage.meal_settled_today(win):
+                meal_prompt = True
+                self._current_meal_window = win
+
         self.break_card.start_break(
             name=movement.name,
             detail=movement.detail,
             hydration=hydration,
             seconds=self.config.light_break_seconds,
+            meal_prompt=meal_prompt,
+            meal_window=self._current_meal_window or "",
         )
+
+    def _on_meal_settled(
+        self, window_name: str, answered: str, extended_minutes: float | None
+    ) -> None:
+        """Meal-window answer received from the break card. Store it; the break
+        continues normally from here — Python doesn't need to intervene further."""
+        self.storage.record_meal_prompt(window_name, answered, extended_minutes)
 
     def _on_break_done(self) -> None:
         """Break finished (honor-based). The check-in rides on the break you're already

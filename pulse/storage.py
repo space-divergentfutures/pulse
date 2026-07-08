@@ -49,6 +49,19 @@ CREATE TABLE IF NOT EXISTS checkins (
 );
 CREATE INDEX IF NOT EXISTS idx_checkins_ts ON checkins (ts);
 
+-- Meal-window prompts (spec §5d) — one row per settled window per day per machine.
+-- 'yes'/'no' = answered for the day; 'deferred' = fire again next break.
+CREATE TABLE IF NOT EXISTS meal_prompts (
+    id               TEXT PRIMARY KEY,
+    machine_id       TEXT NOT NULL,
+    date             TEXT NOT NULL,
+    window           TEXT NOT NULL,
+    answered         TEXT NOT NULL,   -- 'yes' | 'no' | 'deferred'
+    extended_minutes REAL              -- set only when answered = 'no'
+);
+CREATE INDEX IF NOT EXISTS idx_meal_prompts_day
+    ON meal_prompts (machine_id, date, window);
+
 -- All user-facing settings live here (§8: config.yaml is machine plumbing only).
 -- Values are JSON-encoded strings, decoded by pulse.settings.
 CREATE TABLE IF NOT EXISTS settings (
@@ -190,6 +203,40 @@ class PulseStorage:
             (day,),
         ).fetchone()
         return float(row["total"])
+
+    # --- meal prompts (spec §5d) -----------------------------------------------
+
+    def meal_settled_today(self, window_name: str, date: str | None = None) -> bool:
+        """True if the window has a final (yes/no) answer today on this machine.
+        A 'deferred' record does not count — the window can fire again next break."""
+        d = date or _today_iso()
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM meal_prompts "
+            "WHERE machine_id = ? AND date = ? AND window = ? AND answered IN ('yes', 'no')",
+            (self.machine_id, d, window_name),
+        ).fetchone()
+        return row["n"] > 0
+
+    def record_meal_prompt(
+        self,
+        window_name: str,
+        answered: str,
+        extended_minutes: float | None = None,
+        ts: float | None = None,
+    ) -> str:
+        """Store the outcome of a meal-window prompt. Returns the new UUID."""
+        mid = str(uuid.uuid4())
+        ts = time.time() if ts is None else ts
+        d = _date.fromtimestamp(ts).isoformat()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO meal_prompts "
+                "(id, machine_id, date, window, answered, extended_minutes) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (mid, self.machine_id, d, window_name, answered, extended_minutes),
+            )
+            self._conn.commit()
+        return mid
 
     # --- settings (raw JSON strings; pulse.settings owns the encoding) ----------
 
