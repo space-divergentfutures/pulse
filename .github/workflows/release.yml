@@ -1,0 +1,80 @@
+name: Release
+
+# Triggered by a version tag push (e.g. git tag v1.0.0 && git push --tags).
+# Builds a one-dir PyInstaller bundle, zips it, and uploads to a GitHub Release.
+#
+# Note (spec §11): Code-signing (reducing SmartScreen warnings) is a later option
+# once the project has a paid certificate. Users should follow the "More info →
+# Run anyway" instructions in the README until then.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # needed to create a Release and upload assets
+
+jobs:
+  build-windows:
+    name: Build Windows installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install runtime + build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Run tests
+        run: python -m pytest tests/ -q
+
+      - name: Build one-dir bundle
+        run: pyinstaller PULSE.spec
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+        shell: pwsh
+
+      - name: Build installer
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\pulse.iss" "/DMyAppVersion=$version"
+        shell: pwsh
+
+      - name: Zip app folder (no-installer fallback)
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          Compress-Archive -Path dist\PULSE\* -DestinationPath "PULSE-$version-windows.zip"
+        shell: pwsh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            installer/PULSE-Setup-*.exe
+            PULSE-*-windows.zip
+          generate_release_notes: true
+          body: |
+            ## Installing PULSE
+
+            **Recommended:** Download `PULSE-Setup-x.x.x.exe` and run the installer.
+
+            **SmartScreen warning:** Windows may show a blue "Windows protected your PC"
+            screen for unsigned open-source apps. Click **More info → Run anyway** to proceed.
+            This is expected until the project acquires a code-signing certificate.
+
+            **WebView2:** The installer will prompt you if the WebView2 Runtime is missing
+            (it ships with Windows 11 and modern Edge — most machines already have it).
+
+            ---
+            *Portable ZIP (`PULSE-x.x.x-windows.zip`): extract and run `PULSE.exe` directly.*

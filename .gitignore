@@ -24,6 +24,7 @@ spike/spike_events.log
 build/
 dist/
 *.spec
+!PULSE.spec
 
 # Editors / OS
 .vscode/

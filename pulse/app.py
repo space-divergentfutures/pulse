@@ -558,6 +558,9 @@ class PulseApp:
 
 
 def main() -> None:
+    from .platform.webview_check import check_webview2_or_warn
+    if not check_webview2_or_warn():
+        return  # user has been shown a helpful message; exit cleanly
     PulseApp().run()
 
 
