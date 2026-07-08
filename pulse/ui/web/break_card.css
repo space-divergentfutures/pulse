@@ -1,0 +1,70 @@
+/* PULSE light break card (spec §5a, §5d). Same calm language as the corner widget.
+   Opaque rounded card (WebView2 transparency is unreliable — Step 0). */
+
+:root {
+  --bg: #12141a;
+  --card-a: #1b1f2a;
+  --card-b: #12141a;
+  --ink: #e8ebf2;
+  --muted: #8b93a7;
+  --accent: #7fd1c1;
+  --accent-btn: #2f6f63;
+  --accent-btn-hi: #3a8577;
+  --water: #6db3d6;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  -webkit-user-select: none; user-select: none;
+  overflow: hidden; cursor: default;
+}
+
+.card {
+  width: 100%; height: 100%;
+  background: linear-gradient(160deg, var(--card-a) 0%, var(--card-b) 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+  color: var(--ink);
+  display: flex; flex-direction: column;
+  padding: 14px 16px 12px; gap: 10px;
+}
+
+.head { display: flex; align-items: baseline; justify-content: space-between; }
+.kicker {
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+.timer {
+  font-size: 22px; font-weight: 700; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.move { display: flex; flex-direction: column; gap: 2px; }
+.move-name { font-size: 18px; font-weight: 650; color: var(--ink); }
+.move-detail { font-size: 12.5px; color: var(--muted); }
+
+.hydrate {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12.5px; color: var(--water);
+  background: rgba(109,179,214,0.10);
+  border: 1px solid rgba(109,179,214,0.18);
+  border-radius: 9px; padding: 6px 9px;
+}
+.drop { font-size: 13px; }
+
+.action {
+  appearance: none; border: none; cursor: pointer;
+  background: var(--accent-btn); color: #eafff8;
+  font-size: 14px; font-weight: 600; border-radius: 10px;
+  padding: 9px 0; width: 100%; margin-top: 2px;
+  transition: background .12s ease, transform .06s ease;
+}
+.action:hover { background: var(--accent-btn-hi); }
+.action:active { transform: translateY(1px); }
+
+.honor { font-size: 10.5px; color: var(--muted); text-align: center; }

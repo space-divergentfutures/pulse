@@ -65,11 +65,13 @@ class CornerWidget:
         width: int = DEFAULT_WIDTH,
         height: int = DEFAULT_HEIGHT,
         margin: int = DEFAULT_MARGIN,
+        start_hidden: bool = False,
     ) -> None:
         self._platform = platform
         self._width = width
         self._height = height
         self._margin = margin
+        self._start_hidden = start_hidden
         self._callbacks = {
             "break_now": on_break_now,
             "done": on_done,
@@ -98,6 +100,7 @@ class CornerWidget:
             transparent=False,     # opaque baseline (Step 0: transparency unreliable)
             background_color="#12141a",
             easy_drag=False,
+            hidden=self._start_hidden,
         )
         return self._window
 

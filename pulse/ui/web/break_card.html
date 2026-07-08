@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PULSE — break</title>
+  <link rel="stylesheet" href="break_card.css">
+</head>
+<body>
+  <!-- Light break card (spec §5a, §5d). A gentle corner card, never a screen takeover.
+       Movement suggestion + hydration (which rides on every break) + a self-started
+       timer. Doing/rating is honor-based. -->
+  <div class="card" id="card">
+    <div class="head">
+      <span class="kicker" id="kicker">Light break</span>
+      <span class="timer" id="timer">1:30</span>
+    </div>
+
+    <div class="move">
+      <div class="move-name" id="moveName">Walk it out</div>
+      <div class="move-detail" id="moveDetail">a lap of the room, 1–2 min</div>
+    </div>
+
+    <div class="hydrate" id="hydrate">
+      <span class="drop">💧</span><span id="hydrateText">water within reach?</span>
+    </div>
+
+    <button class="action" id="doneBtn">Done</button>
+    <div class="honor" id="honor">move if you can — it's yours, do it your way</div>
+  </div>
+  <script src="break_card.js"></script>
+</body>
+</html>
