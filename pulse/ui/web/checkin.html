@@ -15,6 +15,30 @@
       <button class="skip" id="skipBtn">skip</button>
     </section>
 
+    <!-- Stage 2/3 (§7): block-type context. Stage 3 also shows the note field. -->
+    <section class="view hidden" id="contextView">
+      <div class="q ctx-q">What kind of block was that?</div>
+      <div class="chips" id="blockChips"><!-- chip buttons injected by JS --></div>
+      <textarea class="note-field hidden" id="noteField"
+        placeholder="Anything else? (optional — tap Done to skip)"
+        rows="2"></textarea>
+      <div class="ctx-actions">
+        <button class="done" id="contextDoneBtn">Done</button>
+        <button class="skip" id="contextSkipBtn">skip</button>
+      </div>
+    </section>
+
+    <!-- "Was this actually helping?" cadence (§7): every 5.5 accumulated active hours. -->
+    <section class="view hidden" id="usefulView">
+      <div class="q useful-q">Is tracking block types actually helping?</div>
+      <div class="useful-opts">
+        <button class="useful-btn yes" data-response="yes">Yes, it helps</button>
+        <button class="useful-btn maybe" data-response="not_sure">Not sure yet</button>
+        <button class="useful-btn stop" data-response="stop">Stop asking</button>
+      </div>
+      <p class="useful-fine">No wrong answer — this is your data.</p>
+    </section>
+
     <!-- The instant feedback is the reward. Dots from day 1; the unlock meter climbs. -->
     <section class="view hidden" id="graphView">
       <div class="graph-head">
@@ -27,6 +51,8 @@
         <div class="meter-track"><div class="meter-fill" id="meterFill"></div></div>
         <div class="meter-label" id="meterLabel"></div>
       </div>
+
+      <div class="patterns hidden" id="patterns"></div>
 
       <button class="done" id="doneBtn">Done</button>
     </section>

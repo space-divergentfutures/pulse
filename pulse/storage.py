@@ -27,6 +27,16 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT NOT NULL
 );
 
+-- Tracked reflection dimensions (§7 Stage 2/3).
+-- Enabled dimensions appear in the check-in card after their stage unlocks.
+CREATE TABLE IF NOT EXISTS tracked_dimensions (
+    machine_id TEXT NOT NULL,
+    name       TEXT NOT NULL,   -- 'block_type' | 'note'
+    enabled    INTEGER NOT NULL DEFAULT 1,
+    added_ts   REAL NOT NULL,
+    PRIMARY KEY (machine_id, name)
+);
+
 -- Daily accumulated active minutes, PER MACHINE (summed at display, never overwritten).
 CREATE TABLE IF NOT EXISTS active_time (
     machine_id     TEXT NOT NULL,
@@ -138,6 +148,30 @@ class PulseStorage:
             self._conn.commit()
         return mid
 
+    # --- meta key/value store --------------------------------------------------
+
+    def get_meta(self, key: str, default: str | None = None) -> str | None:
+        row = self._conn.execute(
+            "SELECT value FROM meta WHERE key = ?", (key,)
+        ).fetchone()
+        return row["value"] if row is not None else default
+
+    def set_meta(self, key: str, value: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO meta (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, value),
+            )
+            self._conn.commit()
+
+    def get_useful_check_ms(self) -> float:
+        v = self.get_meta("useful_check_ms")
+        return float(v) if v is not None else 0.0
+
+    def save_useful_check_ms(self, ms: float) -> None:
+        self.set_meta("useful_check_ms", str(float(ms)))
+
     # --- check-ins -------------------------------------------------------------
 
     def add_checkin(
@@ -202,6 +236,65 @@ class PulseStorage:
         return self._conn.execute(
             "SELECT COUNT(*) AS n FROM checkins WHERE day = ? AND skipped = 0", (day,)
         ).fetchone()["n"]
+
+    def checkins_with_dimension(self, dim: str) -> int:
+        """Non-skipped check-ins where the given dimension column is non-NULL."""
+        safe = {"block_type": "block_type", "energy": "energy", "note": "note"}.get(dim)
+        if safe is None:
+            return 0
+        return self._conn.execute(
+            f"SELECT COUNT(*) AS n FROM checkins "
+            f"WHERE machine_id = ? AND skipped = 0 AND {safe} IS NOT NULL",
+            (self.machine_id,),
+        ).fetchone()["n"]
+
+    def reflection_stage(self) -> int:
+        """Stage 1 → 2 → 3 based on consistency thresholds (§7).
+        Stage 2 unlocks after 5 non-skipped ratings on 3+ distinct days.
+        Stage 3 unlocks after 5 additional check-ins with block_type filled."""
+        if self.counted_checkins() < 5 or self.distinct_rating_days() < 3:
+            return 1
+        if self.checkins_with_dimension("block_type") < 5:
+            return 2
+        return 3
+
+    def ratings_after_training(self, limit: int = 20) -> list[float]:
+        """Ratings from check-ins that occurred within 2 hours of a completed training break."""
+        rows = self._conn.execute(
+            "SELECT c.rating FROM checkins c "
+            "WHERE c.machine_id = ? AND c.skipped = 0 AND c.rating IS NOT NULL "
+            "AND EXISTS ("
+            "  SELECT 1 FROM breaks b "
+            "  WHERE b.machine_id = c.machine_id "
+            "  AND b.layer IN ('training', 'big') AND b.outcome = 'completed' "
+            "  AND b.ts < c.ts AND b.ts > c.ts - 7200"
+            ") "
+            "ORDER BY c.ts DESC LIMIT ?",
+            (self.machine_id, limit),
+        ).fetchall()
+        return [float(r["rating"]) for r in rows]
+
+    def update_checkin_context(
+        self, checkin_id: str, block_type: str | None, note: str | None
+    ) -> None:
+        """Attach block_type / note to an existing checkin row (Stage 2/3 context step)."""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE checkins SET block_type = ?, note = ? WHERE id = ? AND machine_id = ?",
+                (block_type, note, checkin_id, self.machine_id),
+            )
+            self._conn.commit()
+
+    def avg_rating_by_block_type(self) -> dict[str, float]:
+        """Average rating per block_type; only groups with ≥ 3 entries (§7 cross-pattern)."""
+        rows = self._conn.execute(
+            "SELECT block_type, AVG(CAST(rating AS REAL)) AS avg_r, COUNT(*) AS n "
+            "FROM checkins WHERE machine_id = ? AND skipped = 0 "
+            "AND rating IS NOT NULL AND block_type IS NOT NULL "
+            "GROUP BY block_type HAVING n >= 3 ORDER BY avg_r DESC",
+            (self.machine_id,),
+        ).fetchall()
+        return {r["block_type"]: round(r["avg_r"], 1) for r in rows}
 
     # --- active time (per machine, summed at display) --------------------------
 

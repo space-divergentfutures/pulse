@@ -92,3 +92,65 @@ html, body {
 }
 .done:hover { background: var(--accent-btn-hi); }
 .done:active { transform: translateY(1px); }
+
+/* --- context view (Stage 2/3 block-type chips + note) --- */
+.ctx-q { font-size: 14px; margin-top: 2px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 2px; }
+.chip {
+  appearance: none; border: 1px solid rgba(255,255,255,0.12);
+  background: var(--chip, #232838); color: var(--ink);
+  font-size: 13px; border-radius: 20px; padding: 6px 13px;
+  cursor: pointer; transition: background .1s ease, border-color .1s ease, color .1s ease;
+}
+.chip:hover { border-color: rgba(127,209,193,0.5); background: #2c3346; }
+.chip.sel {
+  background: var(--accent-btn); border-color: var(--accent);
+  color: #eafff8;
+}
+
+.note-field {
+  width: 100%; resize: none; border-radius: 9px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--ink); font-family: inherit; font-size: 13px;
+  padding: 8px 10px; line-height: 1.45; margin-top: 4px;
+  transition: border-color .12s ease;
+}
+.note-field:focus { outline: none; border-color: rgba(127,209,193,0.45); }
+.note-field::placeholder { color: var(--muted, #8b93a7); }
+
+.ctx-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.ctx-actions .done { margin-top: 0; }
+.ctx-actions .skip { align-self: center; }
+
+/* --- useful check view (§7: "was this actually helping?") --- */
+.useful-q { font-size: 14px; font-weight: 650; margin-top: 6px; }
+
+.useful-opts {
+  display: flex; flex-direction: column; gap: 8px; margin-top: 10px;
+}
+.useful-btn {
+  appearance: none; cursor: pointer; border-radius: 10px;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  padding: 10px 14px; text-align: left; border: 1px solid rgba(255,255,255,0.1);
+  transition: background .12s ease, border-color .12s ease, transform .06s ease;
+}
+.useful-btn:active { transform: translateY(1px); }
+.useful-btn.yes   { background: var(--accent-btn); color: #eafff8; border-color: var(--accent-btn); }
+.useful-btn.yes:hover { background: var(--accent-btn-hi); }
+.useful-btn.maybe { background: rgba(255,255,255,0.05); color: var(--ink); }
+.useful-btn.maybe:hover { border-color: rgba(255,255,255,0.25); }
+.useful-btn.stop  { background: transparent; color: var(--muted, #8b93a7); font-weight: 400; }
+.useful-btn.stop:hover { color: var(--ink); }
+
+.useful-fine {
+  font-size: 11px; color: var(--muted, #8b93a7); text-align: center; margin: 8px 0 0;
+}
+
+/* --- pattern insights (shown in graphView after floor met) --- */
+.patterns { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.pattern-text {
+  font-size: 11.5px; color: var(--muted, #8b93a7); margin: 0;
+  padding: 7px 10px; border-radius: 8px; background: rgba(127,209,193,0.07);
+  border-left: 2px solid var(--accent); line-height: 1.45;
+}

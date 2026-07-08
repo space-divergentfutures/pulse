@@ -22,7 +22,7 @@ from .content import hydration_prompt_at, light_movement_at
 from .meal import active_window_now
 from .platform import get_platform
 from .platform.base import PlatformInterface
-from .reflection import graph_payload
+from .reflection import compute_patterns, graph_payload
 from .settings import Settings
 from .state_machine import EngineEvent, SessionEngine, SessionState
 from .storage import PulseStorage
@@ -74,6 +74,11 @@ class PulseApp:
         self._training_session_cursor = 0  # rotates through exercise category pairs
         self._theme_applied = False      # inject CSS vars on first poll after windows load
 
+        # Step 9: useful-check state and the checkin-id carried across rate → context.
+        self._useful_check_pending = False
+        self._useful_check_seeded = False   # seed engine counter from storage on first tick
+        self._last_checkin_id: str | None = None
+
         self.widget = CornerWidget(
             self.platform,
             on_break_now=self._on_break_now,
@@ -88,6 +93,8 @@ class PulseApp:
         self.checkin = CheckinCard(
             self.platform,
             on_rating=self._on_rating,
+            on_context=self._on_context,
+            on_useful_check=self._on_useful_check_response,
             on_close=self._on_checkin_close,
             scale_max=self.scale_max,
         )
@@ -178,6 +185,15 @@ class PulseApp:
                 self._apply_theme_to_all()
                 self._theme_applied = True
 
+            # Seed the useful-check accumulator from storage so the 5.5-hour cadence
+            # survives restarts and carries the correct remainder across days (§7).
+            if not self._useful_check_seeded:
+                saved_ms = self.storage.get_useful_check_ms()
+                if saved_ms > 0:
+                    with self._lock:
+                        self.engine._useful_check_ms = saved_ms
+                self._useful_check_seeded = True
+
             now = self.platform.get_monotonic_ms()
             idle = self.platform.get_idle_seconds()
             locked = self.platform.is_session_locked()
@@ -229,7 +245,14 @@ class PulseApp:
                         self.widget.show()
                         self._widget_visible = True
                     self.widget.show_training_ready()
-        # USEFUL_CHECK_DUE handled in step 9.
+        elif event is EngineEvent.USEFUL_CHECK_DUE:
+            # Persist the remainder so it carries across restarts (§7: "persistent across days").
+            with self._lock:
+                remainder = self.engine._useful_check_ms
+            self.storage.save_useful_check_ms(remainder)
+            # Only offer the check from Stage 2 onward — no point asking before block types exist.
+            if self.storage.reflection_stage() >= 2:
+                self._useful_check_pending = True
 
     # --- UI callbacks (GUI thread) --------------------------------------------
 
@@ -339,7 +362,7 @@ class PulseApp:
         """Training card closed after completion — show check-in."""
         self.training_card.hide()
         self._in_training = False
-        self.checkin.show_checkin()
+        self._show_checkin()
 
     def _on_big_break_done(self) -> None:
         """12-min Big Break finished. Record, persist, queue check-in."""
@@ -351,7 +374,7 @@ class PulseApp:
         self._persist_active_time()
         self.training_card.hide()
         self._in_training = False
-        self.checkin.show_checkin()
+        self._show_checkin()
 
     def _on_break_done(self) -> None:
         """Break finished (honor-based). The check-in rides on the break you're already
@@ -360,16 +383,45 @@ class PulseApp:
             self.engine.complete_break()
         self._persist_active_time()
         self.break_card.hide()
-        self.checkin.show_checkin()
+        self._show_checkin()
         # _in_break stays True across the check-in so the widget won't re-warn under it.
 
+    def _show_checkin(self) -> None:
+        stage = self.storage.reflection_stage()
+        self.checkin.show_checkin(stage)
+
     def _on_rating(self, value: int | None, skipped: bool) -> dict:
-        """Store the one-tap rating (or skip) and return the fresh graph payload so the
-        page can show the graph immediately — the instant feedback is the reward (§7)."""
+        """Store the one-tap rating (or skip) and return the graph payload.
+        Stage and useful_check_pending are included so JS can decide the next view (§7)."""
         with self._lock:
-            self.storage.add_checkin(value, skipped=skipped)
+            cid = self.storage.add_checkin(value, skipped=skipped)
             payload = graph_payload(self.storage, self.config, self.scale_max)
+        self._last_checkin_id = cid
+        stage = self.storage.reflection_stage()
+        payload["stage"] = stage
+        payload["skipped"] = skipped
+        # useful_check only applies in Stage 2+ and not on a skip (skip is already an opt-out).
+        payload["useful_check_pending"] = self._useful_check_pending and stage >= 2 and not skipped
         return payload
+
+    def _on_context(self, block_type: str | None, note: str | None) -> dict:
+        """Stage 2/3: attach block_type and note to the already-stored checkin,
+        then return the updated graph payload so the graph view can render."""
+        cid = self._last_checkin_id
+        with self._lock:
+            if cid:
+                self.storage.update_checkin_context(cid, block_type, note)
+            payload = graph_payload(self.storage, self.config, self.scale_max)
+        stage = self.storage.reflection_stage()
+        payload["stage"] = stage
+        payload["useful_check_pending"] = self._useful_check_pending and stage >= 2
+        return payload
+
+    def _on_useful_check_response(self, response: str) -> dict:
+        """User answered the "was this useful?" question. Clear the pending flag.
+        'stop' means disable further block_type prompts — handled in Step 10."""
+        self._useful_check_pending = False
+        return {"ok": True}
 
     def _on_checkin_close(self) -> None:
         self.checkin.hide()

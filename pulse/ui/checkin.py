@@ -1,6 +1,8 @@
 """Check-in + graph controller (spec §7).
 
 Stage 1: one question, one tap — "How did that block go?" — then the graph immediately.
+Stage 2: rate → block-type context chips → graph.
+Stage 3: rate → context chips + note field → graph.
 The rating rides on the break you're already taking (one interruption, not two). The
 bridge's rate()/skip() return the fresh graph payload straight back to the page, so the
 feedback is instant — that immediacy is the reward loop (§7).
@@ -8,6 +10,7 @@ feedback is instant — that immediacy is the reward loop (§7).
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 
 import webview
@@ -32,6 +35,16 @@ class _CheckinBridge:
     def skip(self) -> dict:
         return self._card._on_rating(None, True)
 
+    def submit_context(self, data_json: str) -> dict:
+        data = json.loads(data_json)
+        return self._card._on_context(
+            block_type=data.get("block_type"),
+            note=data.get("note"),
+        )
+
+    def useful_check(self, response: str) -> dict:
+        return self._card._on_useful_check(str(response))
+
     def close(self) -> dict:
         self._card._on_close_cb()
         return {"ok": True}
@@ -47,6 +60,8 @@ class CheckinCard:
         platform: PlatformInterface,
         *,
         on_rating: Callable[[int | None, bool], dict],
+        on_context: Callable[[str | None, str | None], dict],
+        on_useful_check: Callable[[str], dict],
         on_close: Callable[[], None],
         scale_max: int = 10,
         width: int = DEFAULT_WIDTH,
@@ -55,6 +70,8 @@ class CheckinCard:
     ) -> None:
         self._platform = platform
         self._on_rating_cb = on_rating
+        self._on_context_cb = on_context
+        self._on_useful_check_cb = on_useful_check
         self._on_close_cb = on_close
         self._scale_max = scale_max
         self._width = width
@@ -90,8 +107,10 @@ class CheckinCard:
     def set_scale_max(self, scale_max: int) -> None:
         self._scale_max = scale_max
 
-    def show_checkin(self) -> None:
-        self._eval(f"window.pulse.startCheckin({int(self._scale_max)})")
+    def show_checkin(self, stage: int = 1) -> None:
+        self._eval(
+            f"window.pulse.startCheckin({int(stage)}, {int(self._scale_max)})"
+        )
         if self._window is not None:
             self._window.show()
 
@@ -109,3 +128,9 @@ class CheckinCard:
 
     def _on_rating(self, value: int | None, skipped: bool) -> dict:
         return self._on_rating_cb(value, skipped)
+
+    def _on_context(self, block_type: str | None, note: str | None) -> dict:
+        return self._on_context_cb(block_type, note)
+
+    def _on_useful_check(self, response: str) -> dict:
+        return self._on_useful_check_cb(response)
