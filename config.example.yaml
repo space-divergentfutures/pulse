@@ -1,0 +1,25 @@
+# PULSE — machine plumbing ONLY (§8 of the spec).
+#
+# Config precedence: this file holds machine-level plumbing only.
+# EVERY user-facing setting (intervals, enforcement style, profiles, meal windows,
+# rating scale, etc.) lives in SQLite, never here. Two homes, zero overlap.
+#
+# Copy this file to `config.yaml` and edit. `config.yaml` is git-ignored and
+# private to each machine.
+
+# Where the local SQLite database lives. Default: alongside the app data.
+# Leave blank to use the platform default (%LOCALAPPDATA%\PULSE\pulse.db on Windows).
+db_path: ""
+
+# A stable, human-readable name for THIS machine. Used in the machine_id merge
+# rules so multi-machine records never collide. If blank, a UUID is generated
+# once and stored next to the database.
+machine_name: ""
+
+# --- Optional sync module (OFF by default; see §8) ---
+# Local SQLite is always the source of truth. Sync is best-effort and Tailnet-only.
+sync:
+  enabled: false
+  # PocketBase base URL, reachable over your Tailscale tailnet only — never internet-exposed.
+  base_url: ""
+  # The auth token is read from the PULSE_PB_TOKEN environment variable, NEVER stored here.

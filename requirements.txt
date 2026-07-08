@@ -1,0 +1,11 @@
+# PULSE runtime dependencies (Python 3.11+)
+# Pinned to the versions validated during the Step 0 spike.
+
+pywebview==6.2.1     # all UI: corner widget, break card, check-in, graphs, settings
+pystray==0.19.5      # tray icon/menu (background thread; pywebview owns the main thread)
+Pillow==12.3.0       # tray icon image generation
+pywin32==312         # Win32: GetLastInputInfo, WTS session-lock, HKCU startup, foreground/fullscreen
+PyYAML==6.0.3        # config.yaml (machine plumbing only)
+
+# Dev / test
+pytest==9.1.1        # unit tests (state machine + accumulators, mocked clock)
