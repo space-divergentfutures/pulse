@@ -48,7 +48,7 @@ hiddenimports += [
 ]
 
 a = Analysis(
-    ["pulse/__main__.py"],
+    ["run_pulse.py"],
     pathex=[],
     binaries=binaries,
     datas=datas,

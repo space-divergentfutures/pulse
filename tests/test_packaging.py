@@ -30,6 +30,18 @@ def test_main_module_importable():
     import pulse.__main__  # noqa: F401 — just check the import works
 
 
+def test_run_pulse_launcher_exists():
+    """PyInstaller entry point (absolute imports, no relative package) must exist."""
+    assert (_REPO / "run_pulse.py").exists()
+
+
+def test_run_pulse_uses_absolute_import():
+    """run_pulse.py must not use relative imports — they break in a frozen bundle."""
+    src = (_REPO / "run_pulse.py").read_text(encoding="utf-8")
+    assert "from pulse.app import" in src
+    assert "from .app" not in src
+
+
 def test_main_function_exists():
     from pulse.app import main
     assert callable(main)
@@ -136,7 +148,7 @@ def test_check_webview2_messagebox_mentions_webview2():
 
 def test_spec_references_main_entry_point():
     spec = (_REPO / "PULSE.spec").read_text(encoding="utf-8")
-    assert "pulse/__main__.py" in spec or "__main__" in spec
+    assert "run_pulse.py" in spec
 
 
 def test_spec_includes_web_assets():
