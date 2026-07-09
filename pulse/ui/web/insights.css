@@ -1,6 +1,8 @@
 /* PULSE Insights window (spec §7/§10) — weekly summary + unlock meter + pattern reveal.
    Extends onboard.css (already linked). Only insight-specific components here. */
 
+.hidden { display: none; }
+
 .ins-header { margin-bottom: 16px; }
 .ins-title  { font-size: 20px; font-weight: 700; margin: 2px 0 4px; color: var(--ink); }
 .ins-sub    { font-size: 13px; color: var(--muted); margin: 0; }
