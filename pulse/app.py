@@ -383,6 +383,8 @@ class PulseApp:
 
     def _on_break_now(self) -> None:
         """'Break now' / 'Do it' on the corner widget — routes to training or light break."""
+        if self._in_break or self._in_training:
+            return
         if self._training_pending or self._training_deferred:
             self._training_deferred = False  # consume the deferred flag before routing
             self._on_training_now()

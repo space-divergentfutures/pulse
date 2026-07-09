@@ -86,8 +86,7 @@
 
   /* --- meal phase handlers ------------------------------------------------ */
   mealYes.addEventListener("click", function () {
-    const a = api();
-    if (a) a.meal_yes();
+    try { const a = api(); if (a) a.meal_yes(); } catch (_) {}
     showBreak();
   });
 
@@ -98,14 +97,12 @@
   });
 
   mealDefer.addEventListener("click", function () {
-    const a = api();
-    if (a) a.meal_deferred();
+    try { const a = api(); if (a) a.meal_deferred(); } catch (_) {}
     showBreak();
   });
 
   mealSkip.addEventListener("click", function () {
-    const a = api();
-    if (a) a.meal_deferred();
+    try { const a = api(); if (a) a.meal_deferred(); } catch (_) {}
     showBreak();
   });
 
@@ -118,9 +115,9 @@
   });
 
   mealGo.addEventListener("click", function () {
-    const a = api();
-    if (a) a.meal_no(pick.val);
-    showBreak(pick.val * 60);
+    var mins = pick.val;
+    try { const a = api(); if (a) a.meal_no(mins); } catch (_) {}
+    showBreak(mins * 60);
   });
 
   /* --- normal break Done button ------------------------------------------- */
