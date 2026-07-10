@@ -67,7 +67,9 @@ CREATE TABLE IF NOT EXISTS meal_prompts (
     date             TEXT NOT NULL,
     window           TEXT NOT NULL,
     answered         TEXT NOT NULL,   -- 'yes' | 'no' | 'deferred'
-    extended_minutes REAL              -- set only when answered = 'no'
+    extended_minutes REAL,            -- set only when answered = 'no'
+    food_detail      TEXT,            -- 'light' | 'medium' | 'heavy' (optional)
+    water_amount     TEXT             -- 'little' | 'glass' | 'plenty' (optional)
 );
 CREATE INDEX IF NOT EXISTS idx_meal_prompts_day
     ON meal_prompts (machine_id, date, window);
@@ -140,7 +142,22 @@ class PulseStorage:
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
+        self._migrate()
         self.machine_id = self._get_or_create_machine_id()
+
+    # --- schema migrations (additive only) ------------------------------------
+
+    def _migrate(self) -> None:
+        existing = {
+            row["name"]
+            for row in self._conn.execute("PRAGMA table_info(meal_prompts)").fetchall()
+        }
+        for col, defn in [("food_detail", "TEXT"), ("water_amount", "TEXT")]:
+            if col not in existing:
+                self._conn.execute(
+                    f"ALTER TABLE meal_prompts ADD COLUMN {col} {defn}"
+                )
+        self._conn.commit()
 
     # --- machine identity ------------------------------------------------------
 
@@ -381,6 +398,9 @@ class PulseStorage:
         answered: str,
         extended_minutes: float | None = None,
         ts: float | None = None,
+        *,
+        food_detail: str | None = None,
+        water_amount: str | None = None,
     ) -> str:
         """Store the outcome of a meal-window prompt. Returns the new UUID."""
         mid = str(uuid.uuid4())
@@ -389,9 +409,10 @@ class PulseStorage:
         with self._lock:
             self._conn.execute(
                 "INSERT INTO meal_prompts "
-                "(id, machine_id, date, window, answered, extended_minutes) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (mid, self.machine_id, d, window_name, answered, extended_minutes),
+                "(id, machine_id, date, window, answered, extended_minutes, food_detail, water_amount) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (mid, self.machine_id, d, window_name, answered, extended_minutes,
+                 food_detail, water_amount),
             )
             self._conn.commit()
         return mid

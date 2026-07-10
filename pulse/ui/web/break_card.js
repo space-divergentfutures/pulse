@@ -12,17 +12,20 @@
   "use strict";
 
   /* --- elements ----------------------------------------------------------- */
-  const mealPhase    = document.getElementById("mealPhase");
-  const mealQuestion = document.getElementById("mealQuestion");
-  const mealPicker   = document.getElementById("mealPicker");
-  const mealYes      = document.getElementById("mealYes");
-  const mealNo       = document.getElementById("mealNo");
-  const mealDefer    = document.getElementById("mealDefer");
-  const mealGo       = document.getElementById("mealGo");
-  const mealSkip     = document.getElementById("mealSkip");
-  const pickMinus    = document.getElementById("pickMinus");
-  const pickPlus     = document.getElementById("pickPlus");
-  const pickNum      = document.getElementById("pickNum");
+  const mealPhase       = document.getElementById("mealPhase");
+  const mealQuestion    = document.getElementById("mealQuestion");
+  const mealPicker      = document.getElementById("mealPicker");
+  const mealDetail      = document.getElementById("mealDetail");
+  const mealYes         = document.getElementById("mealYes");
+  const mealNo          = document.getElementById("mealNo");
+  const mealDefer       = document.getElementById("mealDefer");
+  const mealGo          = document.getElementById("mealGo");
+  const mealSkip        = document.getElementById("mealSkip");
+  const mealDetailDone  = document.getElementById("mealDetailDone");
+  const mealDetailSkip  = document.getElementById("mealDetailSkip");
+  const pickMinus       = document.getElementById("pickMinus");
+  const pickPlus        = document.getElementById("pickPlus");
+  const pickNum         = document.getElementById("pickNum");
 
   const breakContent = document.getElementById("breakContent");
   const kicker       = document.getElementById("kicker");
@@ -36,7 +39,9 @@
   /* --- state -------------------------------------------------------------- */
   const timer = { endAt: null, fired: false, running: false };
   const pick  = { val: 20, min: 10, max: 45 };
-  let pending = null;  // the data object from the last startBreak() call
+  let pending      = null;  // the data object from the last startBreak() call
+  let selectedFood  = null;
+  let selectedWater = null;
 
   function api() {
     return window.pywebview && window.pywebview.api ? window.pywebview.api : null;
@@ -86,7 +91,38 @@
 
   /* --- meal phase handlers ------------------------------------------------ */
   mealYes.addEventListener("click", function () {
-    try { const a = api(); if (a) a.meal_yes(); } catch (_) {}
+    selectedFood  = null;
+    selectedWater = null;
+    mealDetail.querySelectorAll(".chip").forEach(function (c) { c.classList.remove("selected"); });
+    mealQuestion.hidden = true;
+    mealDetail.hidden   = false;
+  });
+
+  document.getElementById("foodChips").addEventListener("click", function (e) {
+    var chip = e.target.closest(".chip");
+    if (!chip) return;
+    selectedFood = chip.dataset.val;
+    this.querySelectorAll(".chip").forEach(function (c) {
+      c.classList.toggle("selected", c.dataset.val === selectedFood);
+    });
+  });
+
+  document.getElementById("waterChips").addEventListener("click", function (e) {
+    var chip = e.target.closest(".chip");
+    if (!chip) return;
+    selectedWater = chip.dataset.val;
+    this.querySelectorAll(".chip").forEach(function (c) {
+      c.classList.toggle("selected", c.dataset.val === selectedWater);
+    });
+  });
+
+  mealDetailDone.addEventListener("click", function () {
+    try { const a = api(); if (a) a.meal_yes(selectedFood, selectedWater); } catch (_) {}
+    showBreak();
+  });
+
+  mealDetailSkip.addEventListener("click", function () {
+    try { const a = api(); if (a) a.meal_yes(null, null); } catch (_) {}
     showBreak();
   });
 
@@ -142,9 +178,12 @@
         pick.val = data.mealDefault || 20;
         pickNum.textContent = pick.val;
 
-        // Show meal question, hide picker and break content
+        // Show meal question, hide picker, detail, and break content
         mealQuestion.hidden = false;
         mealPicker.hidden   = true;
+        mealDetail.hidden   = true;
+        selectedFood        = null;
+        selectedWater       = null;
         mealPhase.hidden    = false;
         breakContent.hidden = true;
       } else {

@@ -41,6 +41,29 @@
       <button id="mealSkip" class="link-btn">actually, just the regular break</button>
     </div>
 
+    <!-- State C: food + water detail (after "Yes, I'm good") -->
+    <div id="mealDetail" hidden>
+      <div class="meal-hd">What did you have?</div>
+      <div class="detail-group">
+        <div class="detail-label">Food</div>
+        <div class="chip-row" id="foodChips">
+          <button class="chip" data-val="light">Light snack</button>
+          <button class="chip" data-val="medium">Medium meal</button>
+          <button class="chip" data-val="heavy">Heavy meal</button>
+        </div>
+      </div>
+      <div class="detail-group">
+        <div class="detail-label">Water</div>
+        <div class="chip-row" id="waterChips">
+          <button class="chip" data-val="little">A little</button>
+          <button class="chip" data-val="glass">A glass</button>
+          <button class="chip" data-val="plenty">Plenty</button>
+        </div>
+      </div>
+      <button id="mealDetailDone" class="action">Continue break</button>
+      <button id="mealDetailSkip" class="link-btn">skip details</button>
+    </div>
+
   </div>
 
   <!-- Normal break content (shown once meal phase is dismissed, or for non-meal breaks) -->

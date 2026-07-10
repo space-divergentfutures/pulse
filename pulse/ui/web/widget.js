@@ -19,9 +19,10 @@
   const waveOffBtn = document.getElementById("waveOffBtn");
 
   const state = {
-    phase: "countdown",   // countdown | due | timer | done | training
-    remaining: 0,         // seconds
-    timerEndAt: null,     // ms epoch, for the self-started timer
+    phase: "countdown",      // countdown | due | timer | done | training
+    remaining: 0,            // seconds (derived from countdownEndAt when set)
+    countdownEndAt: null,    // ms epoch deadline for the countdown (wall-clock)
+    timerEndAt: null,        // ms epoch, for the self-started timer
     timerFired: false,
   };
 
@@ -69,7 +70,11 @@
   // One heartbeat drives the visible tick for both clocks.
   setInterval(function () {
     if (state.phase === "countdown" || state.phase === "due") {
-      if (state.remaining > 0) state.remaining -= 1; // smooth between Python re-syncs
+      if (state.countdownEndAt !== null) {
+        state.remaining = Math.max(0, (state.countdownEndAt - Date.now()) / 1000);
+      } else if (state.remaining > 0) {
+        state.remaining -= 1;
+      }
       paint();
     } else if (state.phase === "timer") {
       const left = (state.timerEndAt - Date.now()) / 1000;
@@ -103,7 +108,13 @@
     // ACTIVE-time countdown; escalated => the mark has passed (phase "due").
     showCountdown: function (remainingSeconds, escalated) {
       state.phase = escalated ? "due" : "countdown";
-      state.remaining = remainingSeconds;
+      const now = Date.now();
+      const newEndAt = now + remainingSeconds * 1000;
+      const exhausted = state.countdownEndAt !== null && state.countdownEndAt < now;
+      if (state.countdownEndAt === null || exhausted || newEndAt <= state.countdownEndAt) {
+        state.countdownEndAt = newEndAt;
+      }
+      state.remaining = Math.max(0, (state.countdownEndAt - now) / 1000);
       paint();
     },
     // Start the self-started movement timer (wall-clock, JS-owned).

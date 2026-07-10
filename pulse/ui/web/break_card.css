@@ -132,3 +132,33 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 .picker-unit { font-size: 14px; color: var(--muted); font-weight: 400; }
+
+/* --- meal detail chips (food + water, state C) -------------------------- */
+
+#mealDetail {
+  display: flex; flex-direction: column;
+  gap: 8px; height: 100%; padding: 4px 0;
+}
+
+.detail-group { display: flex; flex-direction: column; gap: 4px; }
+
+.detail-label {
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+
+.chip-row { display: flex; gap: 5px; }
+
+.chip {
+  appearance: none; border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05); color: var(--ink);
+  font-size: 12px; font-weight: 500; border-radius: 8px;
+  padding: 5px 9px; cursor: pointer; font-family: inherit;
+  transition: background .1s ease, border-color .1s ease;
+  flex: 1 1 auto; text-align: center;
+}
+.chip:hover { background: rgba(255,255,255,0.10); }
+.chip.selected {
+  background: var(--accent-btn); border-color: var(--accent);
+  color: #eafff8;
+}

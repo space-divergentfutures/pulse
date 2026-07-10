@@ -40,10 +40,10 @@ class _BreakBridge:
         self._card._fire("timer_finished")
         return {"ok": True}
 
-    def meal_yes(self) -> dict:
+    def meal_yes(self, food_detail=None, water_amount=None) -> dict:
         cb = self._card._on_meal_settled_cb
         if cb:
-            cb(self._card._meal_window, "yes", None)
+            cb(self._card._meal_window, "yes", None, food_detail, water_amount)
         return {"ok": True}
 
     def meal_no(self, minutes: float) -> dict:
@@ -70,7 +70,7 @@ class BreakCard:
         *,
         on_done: Callable[[], None] | None = None,
         on_timer_finished: Callable[[], None] | None = None,
-        on_meal_settled: Callable[[str, str, float | None], None] | None = None,
+        on_meal_settled: Callable[[str, str, float | None, str | None, str | None], None] | None = None,
         width: int = DEFAULT_WIDTH,
         height: int = DEFAULT_HEIGHT,
         margin: int = DEFAULT_MARGIN,

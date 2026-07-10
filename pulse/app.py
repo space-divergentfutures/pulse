@@ -421,11 +421,19 @@ class PulseApp:
         )
 
     def _on_meal_settled(
-        self, window_name: str, answered: str, extended_minutes: float | None
+        self,
+        window_name: str,
+        answered: str,
+        extended_minutes: float | None,
+        food_detail: str | None = None,
+        water_amount: str | None = None,
     ) -> None:
         """Meal-window answer received from the break card. Store it; the break
         continues normally from here — Python doesn't need to intervene further."""
-        self.storage.record_meal_prompt(window_name, answered, extended_minutes)
+        self.storage.record_meal_prompt(
+            window_name, answered, extended_minutes,
+            food_detail=food_detail, water_amount=water_amount,
+        )
 
     def _on_wave_off(self) -> None:
         """User dismissed the widget in Focus Guard mode — hide without starting a break.
