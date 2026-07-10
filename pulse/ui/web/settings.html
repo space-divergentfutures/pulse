@@ -27,6 +27,27 @@
 
   <div id="groups"><!-- setting groups injected by JS --></div>
 
+  <div class="group">
+    <div class="group-title">Your data</div>
+    <div class="setting">
+      <div class="sub" style="margin:0 0 10px;">Export your check-ins, breaks, meal answers,
+      and daily active time as files on your computer. You pick the folder; nothing is sent
+      anywhere. A README explaining every column comes along.</div>
+      <div class="setting-head">
+        <div class="control">
+          <select id="exportScope">
+            <option value="">All data</option>
+            <option value="90">Last 90 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+        </div>
+        <button class="ghost" id="exportCsv">Export CSV</button>
+        <button class="ghost" id="exportJson">Export JSON</button>
+      </div>
+      <div class="sub" id="exportStatus" style="margin:8px 0 0;"></div>
+    </div>
+  </div>
+
   <div class="savebar">
     <span class="saved-note" id="savedNote">changes save automatically</span>
     <button class="primary" id="closeBtn">Close</button>

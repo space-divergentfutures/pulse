@@ -30,6 +30,29 @@ class _SettingsBridge:
         self._win._notify_changed()
         return catalogue_payload(self._win._settings)
 
+    def export_my_data(self, fmt: str = "csv", days=None) -> dict:
+        """Export the reflection tables to a user-chosen folder. Local-only:
+        the native folder dialog picks the destination, files are written
+        there, nothing leaves the machine."""
+        storage = self._win._storage
+        window = self._win._window
+        if storage is None or window is None:
+            return {"ok": False, "message": "export unavailable"}
+        chosen = window.create_file_dialog(webview.FOLDER_DIALOG)
+        if not chosen:
+            return {"ok": False, "cancelled": True}
+        folder = chosen[0] if isinstance(chosen, (list, tuple)) else chosen
+        from ..export import export_data
+        try:
+            files = export_data(
+                storage, folder,
+                fmt="json" if fmt == "json" else "csv",
+                days=int(days) if days else None,
+            )
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+        return {"ok": True, "path": str(folder), "files": [f.name for f in files]}
+
     def close(self) -> dict:
         self._win.hide()
         return {"ok": True}
@@ -45,8 +68,10 @@ class SettingsWindow:
         settings: Settings,
         *,
         on_changed: Callable[[], None] | None = None,
+        storage=None,
     ) -> None:
         self._settings = settings
+        self._storage = storage
         self._on_changed = on_changed
         self._window = None
         self._ready = False

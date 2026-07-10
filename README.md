@@ -30,6 +30,37 @@ anything else, please talk to a doctor.
 
 ---
 
+## Quick start
+
+1. Launch PULSE — a small countdown card appears near the system clock.
+2. When the countdown reaches zero (or whenever you like), click **Break now**.
+3. Take the offered break — movement suggestion, hydration, meal check when relevant.
+4. Rate the block afterwards (optional, one tap) — ratings feed the unlock meter
+   toward your first real insight.
+5. Everything else lives in the tray icon: **Pause/Resume · Break now · Insights ·
+   Settings · Quit**.
+
+First run walks you through the core choices with plain-language explainers — about
+two minutes.
+
+---
+
+## Key features
+
+| Area | Highlights |
+|---|---|
+| **Presence** | ACTIVE / IDLE / AWAY / LOCKED detection via Win32; laptop sleep never counts as work |
+| **Light breaks** | Configurable interval + advance warning; self-started 90 s timer; movement + hydration |
+| **Training** | 6 exercise categories × 3 levels, auto-progress/deload, 12-min "go outside" Big Break |
+| **Meal support** | "Have you eaten today?" in meal windows, food-break duration picker, food/water detail chips |
+| **Reflection** | Progressive stages (rating → block type → note); "was this useful?" every ~5.5 active hours |
+| **Insights** | Weekly chart, pattern detection behind a 15-observation evidence floor, unlock meter |
+| **Focus Guard** | Suppresses escalation during deep work; training waits for a natural edge |
+| **Profiles** | 5 tunable starting points — never diagnoses |
+| **Your data** | Local SQLite; one-click CSV/JSON export from Settings; optional Tailscale-only sync |
+
+---
+
 ## Installing (Windows)
 
 ### Recommended: installer
@@ -106,6 +137,39 @@ inside the app itself.
   it is never configured to send data to any external server.
 - There is no analytics, no telemetry, no account, and no cloud dependency.
 
+**Your data is exportable.** Settings → "Your data" exports your check-ins, breaks, meal
+answers, and daily active time to CSV or JSON files in a folder you choose — with a README
+explaining every column. The files are yours: analyse them, back them up, take them
+elsewhere. Nothing is ever sent anywhere without your explicit action.
+
+---
+
+## Roadmap
+
+Recently shipped: data export (CSV/JSON), meal detail chips, countdown deadline fix.
+
+Under consideration (feedback welcome via Issues):
+
+- Per-user meal window time editing in Settings
+- Exercise customisation (disable/toggle first, custom library later)
+- Linux idle-detection adapter (the big unlock for open-source reach)
+- Optional voice/audio cue for full-screen users
+- Streaks and richer habit views in Insights
+- macOS platform layer
+
+---
+
+## Contributing
+
+Contributions that align with the core philosophy are welcome:
+
+- Privacy-first and local-by-default
+- Non-diagnostic, honour-based, low-shame language
+- A three-part explainer (what / who it suits / trade-off) for every new setting
+- Test coverage for new logic
+
+Please open an issue first for larger changes so we can discuss fit.
+
 ---
 
 ## License
@@ -118,3 +182,7 @@ Free to use, study, modify, and share, including commercially. Any version you
 distribute — including hosting a modified version as a service — must remain open source
 under this same license, with all copyright and attribution notices preserved. No
 closed-source derivatives.
+
+---
+
+**PULSE** — track state, not people. Reflect, don't perform.

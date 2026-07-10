@@ -156,6 +156,22 @@
     if (a) a.close();
   });
 
+  /* --- data export (local-only; Python opens the folder dialog) ----------- */
+  async function runExport(fmt) {
+    const a = api();
+    if (!a) return;
+    const status = document.getElementById("exportStatus");
+    status.textContent = "choose a folder…";
+    const scope = document.getElementById("exportScope").value;
+    const res = await a.export_my_data(fmt, scope ? parseInt(scope, 10) : null);
+    if (res.cancelled) { status.textContent = ""; return; }
+    if (!res.ok) { status.textContent = res.message || "export failed"; return; }
+    if (!res.files.length) { status.textContent = "no data to export yet — take a few breaks first"; return; }
+    status.textContent = "exported " + res.files.length + " file(s) to " + res.path + " — they're yours.";
+  }
+  document.getElementById("exportCsv").addEventListener("click", function () { runExport("csv"); });
+  document.getElementById("exportJson").addEventListener("click", function () { runExport("json"); });
+
   async function init() {
     const a = api();
     if (!a) return;

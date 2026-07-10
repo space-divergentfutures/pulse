@@ -417,6 +417,40 @@ class PulseStorage:
             self._conn.commit()
         return mid
 
+    # --- data export (pulse.export) ---------------------------------------------
+
+    # Whitelisted tables only — meta, settings, and sync internals are never
+    # exported. Each entry carries its time column and how that column stores
+    # time, because the schema mixes epoch floats (ts) and ISO strings (date/day).
+    _EXPORTABLE = {
+        "checkins": ("ts", "epoch"),
+        "breaks": ("ts", "epoch"),
+        "meal_prompts": ("date", "isodate"),
+        "active_time": ("day", "isodate"),
+    }
+
+    def fetch_table(self, table: str, days: int | None = None) -> list[dict]:
+        """All rows from an exportable table, optionally limited to the last
+        ``days`` days. Raises ValueError for anything outside the whitelist."""
+        spec = self._EXPORTABLE.get(table)
+        if spec is None:
+            raise ValueError(f"table {table!r} is not exportable")
+        col, kind = spec
+        if days is not None and days > 0:
+            cutoff: float | str
+            if kind == "epoch":
+                cutoff = time.time() - days * 86400.0
+            else:
+                cutoff = (_date.today() - _timedelta(days=days)).isoformat()
+            rows = self._conn.execute(
+                f"SELECT * FROM {table} WHERE {col} >= ? ORDER BY {col}", (cutoff,)
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                f"SELECT * FROM {table} ORDER BY {col}"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
     # --- settings (raw JSON strings; pulse.settings owns the encoding) ----------
 
     def get_setting(self, key: str) -> str | None:

@@ -131,7 +131,9 @@ class PulseApp:
         )
         self.insights_window = InsightsWindow(load_cb=self._load_insights)
         self.settings_window = SettingsWindow(
-            self.settings, on_changed=self._reload_config_from_settings
+            self.settings,
+            on_changed=self._reload_config_from_settings,
+            storage=self.storage,
         )
         self.training_card = TrainingCard(
             self.platform,
