@@ -1,4 +1,4 @@
-"""Tests for Step 12: optional PocketBase sync (spec §12).
+﻿"""Tests for Step 12: optional PocketBase sync (spec Â§12).
 
 Covers: storage sync methods, SyncClient (mocked urllib), PocketBaseSync
 push/pull logic, MachineConfig YAML loading, and the sync_enabled setting.
@@ -197,7 +197,7 @@ def test_is_duplicate_id_false_on_unrelated_body():
 
 
 # ---------------------------------------------------------------------------
-# SyncClient — mocked urllib
+# SyncClient â€” mocked urllib
 # ---------------------------------------------------------------------------
 
 def _fake_urlopen_ctx(status: int, body: dict | None = None):
@@ -284,7 +284,7 @@ def test_sync_client_sends_auth_header():
 # ---------------------------------------------------------------------------
 
 class _FakeClient:
-    """Fake SyncClient for PocketBaseSync tests — no HTTP."""
+    """Fake SyncClient for PocketBaseSync tests â€” no HTTP."""
 
     def __init__(self, *, create_ok=True, list_by_collection=None):
         self._create_ok = create_ok
@@ -330,7 +330,7 @@ def test_sync_once_leaves_unsent_on_failure(storage):
     syncer = PocketBaseSync(storage, _FakeClient(create_ok=False))
     stats = syncer.sync_once()
     assert stats["errors"] == 1
-    assert len(storage.unsynced_checkins()) == 1  # still unsent — retried next cycle
+    assert len(storage.unsynced_checkins()) == 1  # still unsent â€” retried next cycle
 
 
 def test_sync_once_pushes_breaks(storage):
@@ -513,4 +513,5 @@ def test_sync_enabled_settable(settings):
 
 def test_setting_count_with_sync():
     # 12 (step 5) + 1 (focus_mode) + 4 (appearance) + 1 (start_with_windows) + 1 (sync_enabled) = 19
-    assert len(SETTING_DEFS) == 19
+    assert len(SETTING_DEFS) == 22
+

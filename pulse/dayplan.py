@@ -1,0 +1,41 @@
+"""Day plan + reading session scheduling (post-Step-13 feature).
+
+At the first ACTIVE moment of each day, PULSE asks how long you're at the desk
+("I'm working for 4 hours" / "leaving in 3"). If the planned window is long
+enough, a book-reading session is scheduled at its midpoint — reading gets a
+protected slot in the day instead of being the thing that never happens.
+
+Pure functions only, same reasoning as the state machine: no clock reads, so
+the scheduling maths is driven by an injected ``now`` in tests.
+"""
+
+from __future__ import annotations
+
+PLAN_MIN_HOURS = 0.5
+PLAN_MAX_HOURS = 12.0
+PLAN_DEFAULT_HOURS = 4.0
+PLAN_STEP_HOURS = 0.5
+
+
+def reading_time_for(
+    planned_hours: float | None,
+    min_day_hours: float,
+    now: float,
+) -> float | None:
+    """Epoch seconds at which to offer the reading session, or None if the
+    planned day is too short (or the plan was skipped).
+
+    The midpoint of the planned window: late enough that the morning's momentum
+    isn't broken, early enough that it can't fall off the end of the day."""
+    if planned_hours is None or planned_hours < min_day_hours:
+        return None
+    return now + planned_hours * 3600.0 / 2.0
+
+
+def reading_due(
+    reading_at: float | None,
+    reading_done: bool,
+    now: float,
+) -> bool:
+    """True when the scheduled reading session should be offered."""
+    return reading_at is not None and not reading_done and now >= reading_at

@@ -4,7 +4,7 @@
 > **Audience:** ADHD / autistic minds  
 > **Platform:** Windows 11 (packaged .exe via PyInstaller + Inno Setup)  
 > **Repo:** `space-divergentfutures/pulse` (public, AGPL-3.0)  
-> **Status:** All 13 build steps complete + data export shipped. 272 tests passing. Packaged exe ships.  
+> **Status:** All 13 build steps complete + data export + reading sessions shipped. 288 tests passing. Packaged exe ships.  
 > **Changelog:** see `CHANGELOG.md` for user-facing history.
 
 ---
@@ -43,6 +43,7 @@ pulse/
 ├── app.py                  # Orchestrator — wires presence → engine → UI
 ├── config.py               # TimingConfig dataclass (spec defaults)
 ├── content.py              # Movement suggestions + hydration prompts
+├── dayplan.py              # Day plan + reading session scheduling (pure functions)
 ├── export.py               # Local CSV/JSON data export + manifest
 ├── machine_config.py       # config.yaml loader (DB path, sync URL)
 ├── meal.py                 # Meal window definitions + active_window_now()
@@ -60,6 +61,7 @@ pulse/
 ├── ui/
 │   ├── break_card.py       # BreakCard controller + _BreakBridge (js_api)
 │   ├── checkin.py          # CheckinCard controller
+│   ├── dayplan.py          # DayPlanCard controller ("how long are you here?")
 │   ├── firstrun.py         # FirstRunWindow controller
 │   ├── insights.py         # InsightsWindow controller
 │   ├── settings_window.py  # SettingsWindow controller
@@ -68,7 +70,8 @@ pulse/
 │   ├── widget.py           # CornerWidget controller + _WidgetBridge (js_api)
 │   └── web/                # Static HTML/CSS/JS for every window
 │       ├── widget.*        # Corner countdown widget
-│       ├── break_card.*    # Light break card (movement + meal + detail)
+│       ├── break_card.*    # Light break card (movement + meal + detail + reading)
+│       ├── dayplan.*       # Day plan card (start-of-day hours picker)
 │       ├── checkin.*       # Block rating + context
 │       ├── training_card.* # Training session card + Big Break
 │       ├── insights.*      # Weekly graph + unlock meter
@@ -202,6 +205,16 @@ Proved pywebview frameless + always-on-top works on Windows. Transparency is unr
 - Syncs `checkins` and `breaks` tables; remote rows received from other machines are inserted `ON CONFLICT IGNORE` (local rows are never overwritten)
 - Retry queue: any row not in `sync_log` is re-attempted next cycle
 
+### Post-13 — Reading sessions / day plan (shipped)
+- First active moment of each day: corner card asks "How long are you at the desk today?" (+/- picker, half-hour steps, "not today" skip)
+- Planned day ≥ 4 h (configurable `reading_min_day_hours`) → a reading session (default 30 min, configurable `reading_session_minutes`) is scheduled at the **midpoint** of the planned window (wall-clock)
+- When due, the corner widget shows "Reading break — whenever you're ready" (same offer pattern as training); the next break the user starts becomes the reading break ("Grab your book", self-started timer, hydration rides)
+- Honour-based; recorded in `breaks` with layer `reading` (does NOT count toward the training cap) and settled in the new `day_plans` table
+- Focus Guard: offer stays quiet, pending flag still routes the next natural break to reading
+- Survives restarts (plan persists in SQLite); expires naturally at midnight
+- Pure scheduling maths in `pulse/dayplan.py` (mocked-clock testable); new UI: `ui/dayplan.py` + `web/dayplan.*`
+- Also fixed in this pass: the widget's training-ready "Do it" button was routed to an unwired callback (dead unless the countdown had taken the card over) — training/reading clicks now route through `break_now`
+
 ### Post-13 — Data export (shipped)
 - Settings → "Your data": export to CSV or JSON, all data or last 30/90 days
 - Tables: `checkins`, `breaks`, `meal_prompts`, `active_time` (whitelist enforced in `storage.fetch_table`; meta/settings/sync internals never exportable)
@@ -229,6 +242,7 @@ meta                  -- key/value store (machine_id, useful_check_ms, ...)
 active_time           -- daily active minutes per machine (summed at display, never merged)
 checkins              -- block ratings: id, machine_id, ts, day, rating, block_type, energy, note, skipped
 meal_prompts          -- id, machine_id, date, window, answered, extended_minutes, food_detail, water_amount
+day_plans             -- id, machine_id, date, planned_hours, reading_at, reading_done, ts
 breaks                -- training/big/light break log: id, machine_id, ts, day, layer, enforcement, outcome, duration_s
 exercise_progress     -- per-exercise level (1/2/3), clean_streak, consec_skips, pain_until
 settings              -- all user-facing settings as JSON strings
@@ -255,6 +269,9 @@ All rows have UUID PKs. Multi-machine merge is safe: records from different `mac
 | `training_enabled` | true | Training breaks |
 | `tracking_enabled` | true | Reflection |
 | `meal_windows_enabled` | true | Body floor |
+| `reading_enabled` | true | Reading |
+| `reading_session_minutes` | 30 min | Reading |
+| `reading_min_day_hours` | 4 hrs | Reading |
 | `rating_scale_style` | numbers | Reflection |
 | `appearance_theme` | dark | Appearance |
 | `appearance_accent` | teal | Appearance |
@@ -303,9 +320,10 @@ All rows have UUID PKs. Multi-machine merge is safe: records from different `mac
 
 ## Test Coverage
 
-272 tests, all passing. Mocked-clock design means timing bugs are caught deterministically without real sleeps.
+288 tests, all passing. Mocked-clock design means timing bugs are caught deterministically without real sleeps.
 
 ```
+test_dayplan.py           # Reading scheduling maths + day_plans storage
 test_export.py            # Data export: whitelist, cutoff types, CSV/JSON, manifest
 test_state_machine.py     # Engine tick, all transitions, suspend-gap, tick-wrap
 test_accumulators.py      # Short-break, boundary, lifetime, useful-check counters

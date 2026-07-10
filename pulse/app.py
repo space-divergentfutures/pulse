@@ -20,6 +20,7 @@ import webview
 
 from .config import TimingConfig
 from .content import hydration_prompt_at, light_movement_at
+from .dayplan import PLAN_DEFAULT_HOURS, reading_due, reading_time_for
 from .meal import active_window_now
 from .platform import get_platform
 from .platform.base import PlatformInterface
@@ -31,6 +32,7 @@ from .theme import build_vars, inject_theme
 from .training import big_break_payload, pick_big_break_options, pick_session, session_payload
 from .ui.break_card import BreakCard
 from .ui.checkin import CheckinCard
+from .ui.dayplan import DayPlanCard
 from .ui.firstrun import FirstRunWindow
 from .ui.insights import InsightsWindow
 from .ui.settings_window import SettingsWindow
@@ -103,6 +105,15 @@ class PulseApp:
         self._useful_check_seeded = False   # seed engine counter from storage on first tick
         self._last_checkin_id: str | None = None
 
+        # Day plan / reading session (post-13). Plan state is cached from storage
+        # once per day so the poll loop doesn't hit SQLite every 5 s.
+        self._plan_date: str | None = None   # date the cached plan state is for
+        self._plan_asked = False             # day-plan card shown/answered today
+        self._reading_at: float | None = None
+        self._reading_done = False
+        self._reading_pending = False        # due now; next break becomes reading
+        self._in_reading = False
+
         # Step 11: pause flag + tray handle.
         self._paused = False
         self._tray = None
@@ -142,6 +153,10 @@ class PulseApp:
             on_close=self._on_training_close,
             on_big_break_done=self._on_big_break_done,
         )
+        self.dayplan_card = DayPlanCard(
+            self.platform,
+            on_planned=self._on_day_planned,
+        )
         self._firstrun: FirstRunWindow | None = None
 
     # --- lifecycle -------------------------------------------------------------
@@ -157,6 +172,7 @@ class PulseApp:
         self.insights_window.create()
         self.settings_window.create()
         self.training_card.create()
+        self.dayplan_card.create()
 
         # First launch walks through the core choices once, with the explainers (§6).
         if not self.settings.first_run_complete:
@@ -255,6 +271,7 @@ class PulseApp:
         controllers = [
             self.widget, self.break_card, self.checkin,
             self.insights_window, self.settings_window, self.training_card,
+            self.dayplan_card,
         ]
         if self._firstrun is not None:
             controllers.append(self._firstrun)
@@ -281,6 +298,7 @@ class PulseApp:
         controllers = [
             self.widget, self.break_card, self.checkin,
             self.insights_window, self.settings_window, self.training_card,
+            self.dayplan_card,
         ]
         if self._firstrun is not None:
             controllers.append(self._firstrun)
@@ -317,9 +335,12 @@ class PulseApp:
                 events = self.engine.tick(now, idle, locked)
                 state = self.engine.session_state
                 short_s = self.engine.snapshot().short_break_seconds
+                presence = self.engine.presence
 
             for event in events:
                 self._handle_event(event)
+
+            self._tick_day_plan(presence, state)
 
             # Keep the corner countdown current while it's showing (ACTIVE-time based,
             # so it pauses when the person goes idle — re-pushed here every poll).
@@ -332,6 +353,92 @@ class PulseApp:
                 self.widget.show_focus_mode(focus_mode)
 
             self._stop.wait(self.poll_interval)
+
+    # --- day plan / reading session (post-13) -----------------------------------
+
+    def _tick_day_plan(self, presence, state) -> None:
+        """Once per poll: ask the day-plan question at the first active moment of a
+        new day, and surface the reading offer when its scheduled time arrives."""
+        if not self.settings.get("reading_enabled"):
+            return
+        if not self.settings.first_run_complete:
+            return
+
+        from datetime import date as _d
+        today = _d.today().isoformat()
+
+        # New day (or first tick): load any existing plan from storage.
+        if self._plan_date != today:
+            self._plan_date = today
+            self._reading_pending = False
+            plan = self.storage.day_plan_today(today)
+            if plan is not None:
+                self._plan_asked = True
+                self._reading_at = plan["reading_at"]
+                self._reading_done = bool(plan["reading_done"])
+            else:
+                self._plan_asked = False
+                self._reading_at = None
+                self._reading_done = False
+
+        busy = self._in_break or self._in_training or self._paused
+
+        # Ask once, at the first active moment of the day.
+        if not self._plan_asked and presence.counts_as_active and not busy:
+            self._plan_asked = True
+            self.dayplan_card.ask(PLAN_DEFAULT_HOURS)
+            return
+
+        # Offer the reading session when its time arrives. The offer is a gentle
+        # widget state (like training) — never a takeover — and once pending, the
+        # next break the user starts becomes the reading break.
+        if reading_due(self._reading_at, self._reading_done, time.time()) and not busy:
+            self._reading_pending = True
+            focus_mode = self.settings.get("focus_mode_enabled")
+            # In focus mode stay quiet; the pending flag still routes the next
+            # natural break to reading. Don't fight the WARN countdown either —
+            # its button routes to the pending reading anyway.
+            if not focus_mode and state is not SessionState.WARN:
+                if not self._widget_visible:
+                    self.widget.show()
+                    self._widget_visible = True
+                self.widget.show_reading_ready(
+                    float(self.settings.get("reading_session_minutes"))
+                )
+
+    def _on_day_planned(self, hours: float | None) -> None:
+        """Day-plan answer from the card ("Start my day" or "not today")."""
+        self.dayplan_card.hide()
+        reading_at = reading_time_for(
+            hours, float(self.settings.get("reading_min_day_hours")), time.time()
+        )
+        self.storage.record_day_plan(hours, reading_at)
+        self._reading_at = reading_at
+        self._reading_done = False
+
+    def _start_reading_break(self) -> None:
+        """Serve the reading session as a break: grab your book, self-started timer."""
+        with self._lock:
+            self.engine.start_break()
+        self._due = False
+        self._reading_pending = False
+        if self._widget_visible:
+            self.widget.hide()
+            self._widget_visible = False
+        self._in_break = True
+        self._in_reading = True
+
+        hydration = hydration_prompt_at(self._hydration_cursor)
+        self._hydration_cursor += 1
+        minutes = float(self.settings.get("reading_session_minutes"))
+        self.break_card.start_break(
+            name="Grab your book",
+            detail="somewhere comfy, away from the screen",
+            hydration=hydration,
+            seconds=minutes * 60.0,
+            kicker="Reading break",
+            honor="it's your half hour — enjoy it",
+        )
 
     def _handle_event(self, event: EngineEvent) -> None:
         # AWAY_RESET is always processed — a natural break clears pending state even
@@ -390,6 +497,9 @@ class PulseApp:
         if self._training_pending or self._training_deferred:
             self._training_deferred = False  # consume the deferred flag before routing
             self._on_training_now()
+            return
+        if self._reading_pending:
+            self._start_reading_break()
             return
         # Light break path — movement suggestion + hydration + optional meal question.
         with self._lock:
@@ -510,6 +620,13 @@ class PulseApp:
     def _on_break_done(self) -> None:
         """Break finished (honor-based). The check-in rides on the break you're already
         taking — one interruption, not two (§7)."""
+        if self._in_reading:
+            # Record the reading session and settle today's offer.
+            minutes = float(self.settings.get("reading_session_minutes"))
+            self.storage.record_break("reading", "honor", "completed", minutes * 60.0)
+            self.storage.mark_reading_done()
+            self._reading_done = True
+            self._in_reading = False
         with self._lock:
             self.engine.complete_break()
         self._persist_active_time()

@@ -1,0 +1,88 @@
+/* PULSE day plan card (reading feature). Same calm language and opaque rounded
+   card as the break card (WebView2 transparency is unreliable — Step 0). */
+
+:root {
+  --bg: #12141a;
+  --card-a: #1b1f2a;
+  --card-b: #12141a;
+  --ink: #e8ebf2;
+  --muted: #8b93a7;
+  --accent: #7fd1c1;
+  --accent-btn: #2f6f63;
+  --accent-btn-hi: #3a8577;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg);
+  font-family: var(--font-family, "Segoe UI", system-ui, sans-serif);
+  -webkit-user-select: none; user-select: none;
+  overflow: hidden; cursor: default;
+  zoom: var(--ui-zoom, 1.0);
+}
+
+.card {
+  width: 100%; height: 100%;
+  background: linear-gradient(160deg, var(--card-a) 0%, var(--card-b) 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+  color: var(--ink);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 14px 16px 12px; gap: 10px;
+}
+
+.plan-icon { font-size: 28px; line-height: 1; }
+
+.plan-hd {
+  font-size: 16px; font-weight: 650; color: var(--ink);
+  text-align: center; line-height: 1.3;
+}
+
+.plan-sub {
+  font-size: 11.5px; color: var(--muted);
+  text-align: center; line-height: 1.4; margin-top: -2px;
+}
+
+.picker-row {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+
+.pick-btn {
+  appearance: none; border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06); color: var(--ink);
+  font-size: 22px; line-height: 1;
+  width: 38px; height: 38px; border-radius: 9px; cursor: pointer;
+  transition: background .1s ease;
+}
+.pick-btn:hover  { background: rgba(255,255,255,0.12); }
+.pick-btn:active { transform: translateY(1px); }
+
+.picker-val {
+  font-size: 26px; font-weight: 700; color: var(--accent);
+  min-width: 88px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.picker-unit { font-size: 14px; color: var(--muted); font-weight: 400; }
+
+.action {
+  appearance: none; border: none; cursor: pointer;
+  background: var(--accent-btn); color: #eafff8;
+  font-size: 14px; font-weight: 600; border-radius: 10px;
+  padding: 9px 0; width: 100%; margin-top: 2px;
+  transition: background .12s ease, transform .06s ease;
+}
+.action:hover { background: var(--accent-btn-hi); }
+.action:active { transform: translateY(1px); }
+
+.link-btn {
+  appearance: none; border: none; background: none;
+  color: var(--muted); font-size: 11px; cursor: pointer;
+  padding: 2px 0; text-decoration: underline;
+  font-family: inherit;
+}
+.link-btn:hover { color: var(--ink); }

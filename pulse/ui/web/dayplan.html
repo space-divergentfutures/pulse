@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PULSE — your day</title>
+  <link rel="stylesheet" href="dayplan.css">
+</head>
+<body>
+  <!-- Day plan card (reading feature). Shown once at the first active moment of
+       each day: "how long are you here?" If the answer is long enough, a reading
+       session gets scheduled at the midpoint of the window. One question, one
+       tap, gone. Skippable without guilt. -->
+  <div class="card" id="card">
+    <div class="plan-icon">📖</div>
+    <div class="plan-hd">How long are you at the desk today?</div>
+    <div class="plan-sub">If there's room, PULSE will slot in a reading break.</div>
+    <div class="picker-row">
+      <button id="planMinus" class="pick-btn">−</button>
+      <span class="picker-val"><span id="planNum">4</span><span class="picker-unit"> hrs</span></span>
+      <button id="planPlus" class="pick-btn">+</button>
+    </div>
+    <button id="planStart" class="action">Start my day</button>
+    <button id="planSkip" class="link-btn">not today</button>
+  </div>
+  <script src="dayplan.js"></script>
+</body>
+</html>

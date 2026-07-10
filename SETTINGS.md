@@ -78,6 +78,29 @@ break. Once settled per window per day.
 
 ---
 
+## Reading
+
+| Key | Kind | Default | Range |
+|-----|------|---------|-------|
+| `reading_enabled` | bool | `true` | — |
+| `reading_session_minutes` | number | `30.0` | 10 – 60 min |
+| `reading_min_day_hours` | number | `4.0` | 1 – 10 hrs |
+
+**reading_enabled** — at the first active moment of each day, PULSE asks how long you're
+at the desk ("Start my day" card, +/- picker in half-hour steps, skippable). If the planned
+day is at least `reading_min_day_hours` long, a reading session is scheduled at the
+midpoint of the window. When it's due, the corner widget shows "Reading break — whenever
+you're ready" (same gentle offer pattern as training), and the next break you start becomes
+the reading break: grab your book, self-started timer, hydration still rides. Honour-based;
+recorded in the `breaks` table with layer `reading`. Off = no day-plan question, no reading
+offers; all other layers unaffected.
+
+**reading_session_minutes** — length of the reading timer.
+
+**reading_min_day_hours** — planned days shorter than this stay purely work + movement.
+
+---
+
 ## Appearance
 
 | Key | Kind | Default | Values |

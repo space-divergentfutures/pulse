@@ -8,6 +8,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Reading sessions (day plan)** — at the first active moment of each day, PULSE asks
+  "How long are you at the desk today?" (half-hour-step picker, skippable without guilt).
+  If the planned day is 4+ hours (configurable), a 30-minute reading break (configurable)
+  is scheduled at the midpoint of the window. When due, the corner widget offers it the
+  same gentle way as training breaks; the next break becomes "grab your book" with a
+  self-started timer. Recorded in a new `day_plans` table (included in data export) and
+  the `breaks` log with layer `reading`. New "Reading" settings group with explainers.
 - **Data export** — Settings → "Your data": export check-ins, breaks, meal answers,
   and daily active-time totals to CSV or JSON, all data or last 30/90 days. Local-only:
   you pick the folder via a native dialog, files are written there, nothing is sent
@@ -20,6 +27,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `food_detail` / `water_amount` columns via a safe additive migration.
 
 ### Fixed
+- Corner widget "Do it" button on the training-ready card now works — it previously
+  routed to an unwired callback and did nothing unless the countdown had taken over
+  the card. Training and reading offers now route through the same break entry point.
 - Countdown no longer ticks backward after idle periods — the widget now derives its
   display from a wall-clock deadline and ignores upward corrections from the
   active-time engine.

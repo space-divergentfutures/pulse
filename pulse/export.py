@@ -19,7 +19,9 @@ if TYPE_CHECKING:
     from .storage import PulseStorage
 
 # Order matters only for the manifest listing.
-EXPORT_TABLES: tuple[str, ...] = ("checkins", "breaks", "meal_prompts", "active_time")
+EXPORT_TABLES: tuple[str, ...] = (
+    "checkins", "breaks", "meal_prompts", "active_time", "day_plans"
+)
 
 # Tables whose ts column is epoch seconds get a derived human-readable ts_iso
 # column in the export — raw epoch floats are useless in a spreadsheet.
@@ -110,6 +112,7 @@ PULSE only ever stores:
 - break timing and outcomes (light / training / big)
 - meal-window answers and the food/water chips you selected
 - daily totals of accumulated active minutes
+- your day-plan answers and whether the reading session happened
 
 PULSE never stores window titles, app names, keystrokes,
 screenshots, or any diagnostic/clinical labels.
@@ -153,6 +156,15 @@ meal_prompts — one row per meal-window answer
 active_time — one row per machine per day
   machine_id, day                   as above
   active_minutes    total active minutes accumulated that day
+
+day_plans — one row per day you answered the day-plan question
+  id, machine_id, date              as above
+  planned_hours     how long you said you'd be at the desk
+                    (empty = you skipped the question)
+  reading_at        when the reading session was scheduled
+                    (epoch seconds; empty = no reading that day)
+  reading_done      1 if you took the reading session, else 0
+  ts                when you answered, epoch seconds
 
 ---------------------------------------------------------------
 TIPS

@@ -1,4 +1,4 @@
-"""Tests for Focus Guard (spec §5c): focus mode setting + routing invariants."""
+﻿"""Tests for Focus Guard (spec Â§5c): focus mode setting + routing invariants."""
 
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ def test_focus_mode_is_bool_kind():
 
 def test_setting_count_includes_focus_guard():
     # 12 (step 5) + 1 (focus_mode) + 4 (appearance) + 1 (start_with_windows) + 1 (sync_enabled) = 19
-    assert len(SETTING_DEFS) == 19
+    assert len(SETTING_DEFS) == 22
 
 
 # ---------------------------------------------------------------------------
@@ -69,3 +69,4 @@ def test_every_setting_still_has_full_explainer():
         assert d.explainer.what, f"{d.key}: missing 'what'"
         assert d.explainer.who,  f"{d.key}: missing 'who'"
         assert d.explainer.tradeoff, f"{d.key}: missing 'tradeoff'"
+

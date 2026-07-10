@@ -19,11 +19,12 @@
   const waveOffBtn = document.getElementById("waveOffBtn");
 
   const state = {
-    phase: "countdown",      // countdown | due | timer | done | training
+    phase: "countdown",      // countdown | due | timer | done | training | reading
     remaining: 0,            // seconds (derived from countdownEndAt when set)
     countdownEndAt: null,    // ms epoch deadline for the countdown (wall-clock)
     timerEndAt: null,        // ms epoch, for the self-started timer
     timerFired: false,
+    readingMinutes: 30,      // shown on the reading-ready card
   };
 
   function api() {
@@ -64,6 +65,11 @@
       subEl.textContent = "finish your thought";
       btn.textContent = "Do it";
       countEl.textContent = "90 min";
+    } else if (state.phase === "reading") {
+      labelEl.textContent = "Reading break";
+      subEl.textContent = "whenever you're ready — grab your book";
+      btn.textContent = "Do it";
+      countEl.textContent = state.readingMinutes + " min";
     }
   }
 
@@ -91,10 +97,13 @@
 
   btn.addEventListener("click", function () {
     const a = api();
-    if (state.phase === "countdown" || state.phase === "due") {
-      if (a) a.break_now();
+    if (!a) return;
+    if (state.phase === "timer" || state.phase === "done") {
+      a.done();
     } else {
-      if (a) a.done();
+      // countdown | due | training | reading — Python's break_now routes to the
+      // pending training/reading session or a plain light break as appropriate.
+      a.break_now();
     }
   });
 
@@ -131,6 +140,12 @@
     },
     showTraining: function () {
       state.phase = "training";
+      paint();
+    },
+    // Reading session ready (day plan) — same gentle offer pattern as training.
+    showReading: function (minutes) {
+      state.phase = "reading";
+      state.readingMinutes = Math.round(minutes) || 30;
       paint();
     },
     // Push focus mode state — suppresses amber escalation, shows wave-off button.

@@ -139,6 +139,10 @@ class CornerWidget:
         """Show the 'training break ready — whenever you're ready' state (§5b)."""
         self._eval("window.pulse.showTraining()")
 
+    def show_reading_ready(self, minutes: float) -> None:
+        """Show the 'reading break ready — whenever you're ready' state (day plan)."""
+        self._eval(f"window.pulse.showReading({float(minutes)})")
+
     def show_focus_mode(self, enabled: bool) -> None:
         """Push focus-mode state to JS: suppresses amber pulse, shows wave-off button."""
         self._eval(f"window.pulse.setFocusMode({json.dumps(bool(enabled))})")

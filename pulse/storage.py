@@ -74,6 +74,20 @@ CREATE TABLE IF NOT EXISTS meal_prompts (
 CREATE INDEX IF NOT EXISTS idx_meal_prompts_day
     ON meal_prompts (machine_id, date, window);
 
+-- Day plans (reading feature) — one row per day per machine. planned_hours NULL
+-- means the plan was skipped ("not today"); reading_at NULL means no reading was
+-- scheduled (day too short or skipped).
+CREATE TABLE IF NOT EXISTS day_plans (
+    id            TEXT PRIMARY KEY,
+    machine_id    TEXT NOT NULL,
+    date          TEXT NOT NULL,
+    planned_hours REAL,
+    reading_at    REAL,              -- epoch seconds; when to offer the reading break
+    reading_done  INTEGER NOT NULL DEFAULT 0,
+    ts            REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_day_plans_day ON day_plans (machine_id, date);
+
 -- Training break log (§5b, §9). Each completed/skipped training break gets a row.
 CREATE TABLE IF NOT EXISTS breaks (
     id          TEXT PRIMARY KEY,
@@ -417,6 +431,48 @@ class PulseStorage:
             self._conn.commit()
         return mid
 
+    # --- day plans (reading feature) ---------------------------------------------
+
+    def record_day_plan(
+        self,
+        planned_hours: float | None,
+        reading_at: float | None,
+        ts: float | None = None,
+    ) -> str:
+        """Store today's plan (planned_hours None = skipped). Returns the UUID."""
+        pid = str(uuid.uuid4())
+        ts = time.time() if ts is None else ts
+        d = _date.fromtimestamp(ts).isoformat()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO day_plans "
+                "(id, machine_id, date, planned_hours, reading_at, reading_done, ts) "
+                "VALUES (?, ?, ?, ?, ?, 0, ?)",
+                (pid, self.machine_id, d, planned_hours, reading_at, ts),
+            )
+            self._conn.commit()
+        return pid
+
+    def day_plan_today(self, date: str | None = None) -> dict | None:
+        """Today's plan on this machine, or None if not asked yet."""
+        d = date or _today_iso()
+        row = self._conn.execute(
+            "SELECT * FROM day_plans WHERE machine_id = ? AND date = ? "
+            "ORDER BY ts DESC LIMIT 1",
+            (self.machine_id, d),
+        ).fetchone()
+        return dict(row) if row is not None else None
+
+    def mark_reading_done(self, date: str | None = None) -> None:
+        d = date or _today_iso()
+        with self._lock:
+            self._conn.execute(
+                "UPDATE day_plans SET reading_done = 1 "
+                "WHERE machine_id = ? AND date = ?",
+                (self.machine_id, d),
+            )
+            self._conn.commit()
+
     # --- data export (pulse.export) ---------------------------------------------
 
     # Whitelisted tables only — meta, settings, and sync internals are never
@@ -427,6 +483,7 @@ class PulseStorage:
         "breaks": ("ts", "epoch"),
         "meal_prompts": ("date", "isodate"),
         "active_time": ("day", "isodate"),
+        "day_plans": ("date", "isodate"),
     }
 
     def fetch_table(self, table: str, days: int | None = None) -> list[dict]:

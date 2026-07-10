@@ -241,6 +241,59 @@ SETTING_DEFS: tuple[SettingDef, ...] = (
             tradeoff="Off removes the food prompt (hydration still rides on every break).",
         ),
     ),
+    # --- Reading (day plan) ----------------------------------------------------
+    SettingDef(
+        key="reading_enabled",
+        label="Reading sessions",
+        kind="bool",
+        default=True,
+        group="Reading",
+        explainer=Explainer(
+            what="At the start of each day PULSE asks how long you're at the desk. "
+            "If the day is long enough, a book-reading session gets its own slot at "
+            "the midpoint — a protected half hour instead of the thing that never "
+            "happens.",
+            who="Tends to help people whose reading pile grows while the hyperfocus "
+            "eats every free hour.",
+            tradeoff="Off means no day-plan question and no reading offers — the "
+            "movement, water, and meal layers are unaffected.",
+        ),
+    ),
+    SettingDef(
+        key="reading_session_minutes",
+        label="Reading length",
+        kind="number",
+        default=30.0,
+        group="Reading",
+        unit="min",
+        minimum=10.0,
+        maximum=60.0,
+        explainer=Explainer(
+            what="How long the reading session timer runs.",
+            who="Half an hour suits most; shorter suits people easing into a "
+            "reading habit.",
+            tradeoff="Longer sessions read more but take a bigger bite out of a "
+            "working day.",
+        ),
+    ),
+    SettingDef(
+        key="reading_min_day_hours",
+        label="Minimum day for reading",
+        kind="number",
+        default=4.0,
+        group="Reading",
+        unit="hrs",
+        minimum=1.0,
+        maximum=10.0,
+        explainer=Explainer(
+            what="A reading session is only scheduled when your planned day is at "
+            "least this long. Shorter days stay purely work + movement breaks.",
+            who="Raise it if short days feel too tight to give up half an hour; "
+            "lower it if you want reading offered almost every day.",
+            tradeoff="Lower means more reading days but less work time on short "
+            "days; higher protects short days but reading happens less often.",
+        ),
+    ),
     SettingDef(
         key="rating_scale_style",
         label="Rating scale",

@@ -1,4 +1,4 @@
-"""Tests for the appearance theme system (pulse/theme.py)."""
+﻿"""Tests for the appearance theme system (pulse/theme.py)."""
 
 from __future__ import annotations
 
@@ -163,4 +163,5 @@ def test_appearance_defaults():
 
 def test_setting_count_with_appearance():
     # 12 (step 5) + 1 (focus_mode) + 4 (appearance) + 1 (start_with_windows) + 1 (sync_enabled) = 19
-    assert len(SETTING_DEFS) == 19
+    assert len(SETTING_DEFS) == 22
+
