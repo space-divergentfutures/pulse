@@ -13,6 +13,9 @@ collection or compulsive accountability:
 
 - **Movement nudges** — gentle, user-timed breaks instead of forced interrupts; hydration
   prompts ride on every break card; configurable meal windows ("go make a sandwich" mode).
+  This is deliberately separate from Big Break's Walk activity: the light layer is a
+  1–2 minute honour-based snack on the ~30-minute clock, while a Walk is a chosen,
+  duration-tracked session at a training-break boundary — different job, different clock.
 - **Focus protection** — manual Focus Mode that holds interruptions back during deep work.
 - **Honest accountability** — the "hard-lock" is a best-effort wall, explained plainly:
   PULSE offers accountability, it can't force it. An hour and one minute is better than nothing.

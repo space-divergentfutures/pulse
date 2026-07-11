@@ -6,10 +6,11 @@ from pulse.storage import PulseStorage
 from pulse.training import (
     ExerciseSpec,
     TrainingSession,
+    load_activities,
+    load_big_break_presets,
     load_big_breaks,
     load_exercises,
     pick_session,
-    pick_big_break_options,
     session_payload,
     big_break_payload,
 )
@@ -33,17 +34,21 @@ def test_load_exercises_structure():
 
 def test_load_big_breaks_structure():
     data = load_big_breaks()
-    assert "options" in data
-    opts = data["options"]
-    assert len(opts) >= 3
-    for opt in opts:
-        assert "id" in opt and "duration_minutes" in opt and "description" in opt
+    assert "activities" in data and "presets" in data
+    assert len(data["activities"]) == 8
+    assert len(data["presets"]) == 5
+    for act in data["activities"]:
+        assert "id" in act and "intensity" in act and "default_minutes" in act
+    for preset in data["presets"]:
+        assert "id" in preset and "activity" in preset and "duration_minutes" in preset
 
 
-def test_big_break_options_rain_ok_field():
-    data = load_big_breaks()
-    # At least some options are rain-ok (indoor)
-    assert any(o["rain_ok"] for o in data["options"])
+def test_activities_rain_ok_field():
+    acts = load_activities()
+    # At least some activities are rain-ok (indoor)
+    assert any(a.rain_ok for a in acts)
+    # Exactly one easy activity today: Walk
+    assert [a.id for a in acts if a.intensity == "easy"] == ["walk"]
 
 
 # ---------------------------------------------------------------------------
@@ -85,11 +90,12 @@ def test_pick_session_uses_stored_level(store):
         assert kb.level == 2
 
 
-def test_pick_big_break_options():
-    opts = pick_big_break_options(3)
-    assert len(opts) == 3
-    for opt in opts:
-        assert opt.id and opt.name and opt.duration_s > 0 and opt.description
+def test_load_big_break_presets_returns_all_five():
+    presets = load_big_break_presets()
+    assert len(presets) == 5
+    for p in presets:
+        assert p.id and p.name and p.duration_minutes > 0 and p.description
+        assert p.cue and p.intensity in ("hard", "easy")
 
 
 def test_session_payload_structure(store):
@@ -103,10 +109,11 @@ def test_session_payload_structure(store):
 
 
 def test_big_break_payload_structure():
-    opts = pick_big_break_options(3)
-    payload = big_break_payload(opts)
-    assert payload["type"] == "big_break"
-    assert len(payload["options"]) == 3
+    payload = big_break_payload(cap_spent=False, hard_lock_enabled=False)
+    assert len(payload["presets"]) == 5
+    assert len(payload["activities"]) == 8
+    assert all(p["available"] for p in payload["presets"])
+    assert "durationOptions" in payload and payload["durationOptions"][0]["minutes"] is None
 
 
 # ---------------------------------------------------------------------------

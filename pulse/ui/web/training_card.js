@@ -1,11 +1,14 @@
-/* PULSE training card behaviour (spec §5b).
+/* PULSE training card behaviour (spec §5b; Big Break menu v1).
  *
  * Phases (in order):
- *   getready      — 90 s countdown; user can skip to "I'm ready" or divert to Big Break
- *   session       — exercises shown one at a time; Done / Skip / Pain per exercise
- *   complete      — session done; level-up announcements; triggers check-in via Python
- *   bigbreak_pick — Big Break option picker
- *   bigbreak_timer — 12-min wall-clock timer for chosen option
+ *   getready          — 90 s countdown; user can skip to "I'm ready" or divert to Big Break
+ *   session           — exercises shown one at a time; Done / Skip / Pain per exercise
+ *   complete          — session done; level-up announcements; triggers check-in via Python
+ *   bigbreak_pick     — all 5 presets (one tap → timer) + "Choose your own →"
+ *   bigbreak_activity — custom path: grid of activities, cue shown on selection
+ *   bigbreak_duration — custom path: scrollable duration picker, incl. open-ended
+ *   bigbreak_timer    — countdown for a picked duration, or a counting-up stopwatch
+ *                       for open-ended ("stop when I'm done")
  *
  * Python drives `window.pulse.startSession(data)`.
  * JS calls back into Python via `pywebview.api.*`.
@@ -15,11 +18,13 @@
 
   /* --- element refs -------------------------------------------------------- */
   const phases = {
-    getready:      document.getElementById("phaseGetready"),
-    session:       document.getElementById("phaseSession"),
-    complete:      document.getElementById("phaseComplete"),
-    bigbreak_pick: document.getElementById("phaseBigPick"),
-    bigbreak_timer:document.getElementById("phaseBigTimer"),
+    getready:       document.getElementById("phaseGetready"),
+    session:        document.getElementById("phaseSession"),
+    complete:       document.getElementById("phaseComplete"),
+    bigbreak_pick:  document.getElementById("phaseBigPick"),
+    bigbreak_activity: document.getElementById("phaseBigActivity"),
+    bigbreak_duration: document.getElementById("phaseBigDuration"),
+    bigbreak_timer: document.getElementById("phaseBigTimer"),
   };
 
   // get-ready
@@ -45,8 +50,22 @@
   const completeMsg   = document.getElementById("completeMsg");
   const completeClose = document.getElementById("completeClose");
 
-  // big break
+  // big break — preset/choose-own picker
   const bigOptions = document.getElementById("bigOptions");
+
+  // big break — activity grid (custom path)
+  const bigActivityGrid = document.getElementById("bigActivityGrid");
+  const bigActivityCue  = document.getElementById("bigActivityCue");
+  const bigActivityNext = document.getElementById("bigActivityNext");
+  const bigActivityBack = document.getElementById("bigActivityBack");
+
+  // big break — duration picker (custom path)
+  const bigDurationName   = document.getElementById("bigDurationName");
+  const bigDurationSelect = document.getElementById("bigDurationSelect");
+  const bigDurationStart  = document.getElementById("bigDurationStart");
+  const bigDurationBack   = document.getElementById("bigDurationBack");
+
+  // big break — timer (countdown or stopwatch)
   const bigName    = document.getElementById("bigName");
   const bigDesc    = document.getElementById("bigDesc");
   const bigCue     = document.getElementById("bigCue");
@@ -61,6 +80,11 @@
   let grTimerEndAt   = null;
   let bigTimerEndAt  = null;
   let bigTimerFired  = false;
+  let bigTimerMode   = "countdown";  // "countdown" | "stopwatch" (open-ended)
+  let bigTimerStartAt= null;         // stopwatch mode: when it started
+  let currentBigBreak= null;         // {activityId, name, description, cue,
+                                      //  durationMinutes, openEnded, hardLock, presetId}
+  let selectedActivity = null;       // custom path: activity chosen in the grid
   let sessTimerEndAt = null;
   let sessTimerFired = false;
   let currentPhase   = null;
@@ -98,13 +122,17 @@
         sessDone.disabled = false;
       }
     }
-    if (currentPhase === "bigbreak_timer" && bigTimerEndAt) {
-      const left = (bigTimerEndAt - Date.now()) / 1000;
-      bigTimer.textContent = fmt(left);
-      if (left <= 0 && !bigTimerFired) {
-        bigTimerFired = true;
-        bigTimer.textContent = "0:00";
-        bigDone.disabled = false;
+    if (currentPhase === "bigbreak_timer") {
+      if (bigTimerMode === "stopwatch") {
+        bigTimer.textContent = fmt((Date.now() - bigTimerStartAt) / 1000);
+      } else if (bigTimerEndAt) {
+        const left = (bigTimerEndAt - Date.now()) / 1000;
+        bigTimer.textContent = fmt(left);
+        if (left <= 0 && !bigTimerFired) {
+          bigTimerFired = true;
+          bigTimer.textContent = "0:00";
+          bigDone.disabled = false;
+        }
       }
     }
   }, 1000);
@@ -188,37 +216,136 @@
     if (a) a.close_card();
   });
 
-  /* --- big break picker ---------------------------------------------------- */
+  /* --- big break: preset picker + "choose your own" ------------------------ */
   function showBigBreakPicker() {
     bigOptions.innerHTML = "";
-    const options = data.options || [];
-    options.forEach(function (opt) {
+    const presets = data.presets || [];
+    presets.forEach(function (p) {
       const btn = document.createElement("button");
-      btn.className = "big-option-btn";
-      btn.innerHTML = opt.name +
-        (opt.rain_ok ? '<span class="rain">(indoor OK)</span>' : "");
-      btn.addEventListener("click", function () { startBigBreak(opt); });
+      btn.className = "big-option-btn" + (p.available ? "" : " unavailable");
+      btn.disabled = !p.available;
+      btn.innerHTML = p.name +
+        (p.rainOk ? '<span class="rain">(indoor OK)</span>' : "") +
+        (p.available ? "" : '<span class="reason">' + p.reason + "</span>");
+      if (p.available) {
+        btn.addEventListener("click", function () {
+          confirmBigBreak({
+            activityId: p.activityId, presetId: p.id, name: p.name,
+            description: p.description, cue: p.cue,
+            durationMinutes: p.durationMinutes, openEnded: false,
+            hardLock: p.hardLock,
+          });
+        });
+      }
       bigOptions.appendChild(btn);
     });
+
+    const chooseOwn = document.createElement("button");
+    chooseOwn.className = "big-option-btn choose-own";
+    chooseOwn.textContent = "Choose your own →";
+    chooseOwn.addEventListener("click", showBigActivityPicker);
+    bigOptions.appendChild(chooseOwn);
+
     showPhase("bigbreak_pick");
   }
 
-  function startBigBreak(opt) {
-    bigName.textContent  = opt.name;
-    bigDesc.textContent  = opt.description;
-    bigCue.textContent   = opt.cue;
-    bigTimer.textContent = fmt(opt.duration_s);
-    bigTimerFired        = false;
-    bigTimerEndAt        = Date.now() + opt.duration_s * 1000;
-    bigDone.disabled     = false;  // honor-based — user can always end early
+  /* --- big break: activity grid (custom path) ------------------------------ */
+  function showBigActivityPicker() {
+    selectedActivity = null;
+    bigActivityNext.disabled = true;
+    bigActivityCue.innerHTML = "&nbsp;";
+    bigActivityGrid.innerHTML = "";
+    const activities = data.activities || [];
+    activities.forEach(function (act) {
+      const btn = document.createElement("button");
+      btn.className = "big-activity-btn";
+      btn.textContent = act.name;
+      btn.disabled = !act.available;
+      if (!act.available) btn.title = act.reason;
+      btn.addEventListener("click", function () {
+        selectedActivity = act;
+        bigActivityGrid.querySelectorAll(".big-activity-btn").forEach(function (b) {
+          b.classList.toggle("selected", b === btn);
+        });
+        bigActivityCue.textContent = act.cue;
+        bigActivityNext.disabled = false;
+      });
+      bigActivityGrid.appendChild(btn);
+    });
+    showPhase("bigbreak_activity");
+  }
+
+  bigActivityNext.addEventListener("click", function () {
+    if (selectedActivity) showBigDurationPicker(selectedActivity);
+  });
+  bigActivityBack.addEventListener("click", showBigBreakPicker);
+
+  /* --- big break: duration picker (custom path) ----------------------------- */
+  function showBigDurationPicker(activity) {
+    bigDurationName.textContent = activity.name;
+    bigDurationSelect.innerHTML = "";
+    const options = data.durationOptions || [];
+    options.forEach(function (o, idx) {
+      const opt = document.createElement("option");
+      opt.value = idx;
+      opt.textContent = o.label;
+      if (o.minutes === activity.defaultMinutes) opt.selected = true;
+      bigDurationSelect.appendChild(opt);
+    });
+    showPhase("bigbreak_duration");
+  }
+
+  bigDurationBack.addEventListener("click", function () {
+    showBigActivityPicker();
+  });
+
+  bigDurationStart.addEventListener("click", function () {
+    const idx = parseInt(bigDurationSelect.value, 10);
+    const chosen = (data.durationOptions || [])[idx];
+    if (!chosen || !selectedActivity) return;
+    const openEnded = chosen.minutes === null;
+    const hardLock = !openEnded &&
+      data.hardLockEnabled &&
+      chosen.minutes <= data.hardlockCeilingMinutes;
+    confirmBigBreak({
+      activityId: selectedActivity.id, presetId: null,
+      name: selectedActivity.name, description: "", cue: selectedActivity.cue,
+      durationMinutes: chosen.minutes, openEnded: openEnded, hardLock: hardLock,
+    });
+  });
+
+  /* --- big break: confirm + timer (countdown or stopwatch) ------------------ */
+  function confirmBigBreak(opts) {
+    currentBigBreak = opts;
+    bigName.textContent = opts.name;
+    bigDesc.textContent = opts.description || "";
+    bigCue.textContent  = opts.cue || "";
+
+    if (opts.openEnded) {
+      bigTimerMode    = "stopwatch";
+      bigTimerStartAt = Date.now();
+      bigTimer.textContent = "0:00";
+      bigDone.disabled = false;  // open-ended is never hard-locked
+    } else {
+      bigTimerMode     = "countdown";
+      bigTimerFired     = false;
+      bigTimerEndAt     = Date.now() + opts.durationMinutes * 60 * 1000;
+      bigTimer.textContent = fmt(opts.durationMinutes * 60);
+      // Honor-based unless this specific session is hard-lock eligible.
+      bigDone.disabled = !!opts.hardLock;
+    }
     showPhase("bigbreak_timer");
     const a = api();
-    if (a) a.big_break_started(opt.id);
+    if (a) a.big_break_started(opts.activityId);
   }
 
   bigDone.addEventListener("click", function () {
     const a = api();
-    if (a) a.big_break_done();
+    if (!a || !currentBigBreak) return;
+    const elapsedMinutes = bigTimerMode === "stopwatch"
+      ? (Date.now() - bigTimerStartAt) / 60000
+      : currentBigBreak.durationMinutes;
+    a.big_break_done(currentBigBreak.activityId, elapsedMinutes, currentBigBreak.openEnded);
   });
 
   /* --- session start (after get-ready) ------------------------------------ */

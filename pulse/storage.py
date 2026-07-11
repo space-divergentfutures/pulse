@@ -171,6 +171,16 @@ class PulseStorage:
                 self._conn.execute(
                     f"ALTER TABLE meal_prompts ADD COLUMN {col} {defn}"
                 )
+
+        existing_breaks = {
+            row["name"]
+            for row in self._conn.execute("PRAGMA table_info(breaks)").fetchall()
+        }
+        for col, defn in [("activity_type", "TEXT"), ("activity_minutes", "REAL")]:
+            if col not in existing_breaks:
+                self._conn.execute(
+                    f"ALTER TABLE breaks ADD COLUMN {col} {defn}"
+                )
         self._conn.commit()
 
     # --- machine identity ------------------------------------------------------
@@ -540,29 +550,47 @@ class PulseStorage:
         outcome: str,
         duration_s: float | None = None,
         ts: float | None = None,
+        *,
+        activity_type: str | None = None,
+        activity_minutes: float | None = None,
     ) -> str:
         mid = str(uuid.uuid4())
         ts = time.time() if ts is None else ts
         d = _date.fromtimestamp(ts).isoformat()
         with self._lock:
             self._conn.execute(
-                "INSERT INTO breaks (id, machine_id, ts, day, layer, enforcement, outcome, duration_s) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (mid, self.machine_id, ts, d, layer, enforcement, outcome, duration_s),
+                "INSERT INTO breaks "
+                "(id, machine_id, ts, day, layer, enforcement, outcome, duration_s, "
+                "activity_type, activity_minutes) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (mid, self.machine_id, ts, d, layer, enforcement, outcome, duration_s,
+                 activity_type, activity_minutes),
             )
             self._conn.commit()
         return mid
 
     def training_count_today(self, day: str | None = None) -> int:
-        """Number of completed training or big breaks today — counts toward the cap."""
+        """Number of completed HARD training/big breaks today — counts toward the
+        cap. Easy-intensity Big Break activities (e.g. Walk) are logged with
+        layer='big' like everything else (so existing insights keep working) but
+        are excluded here — the cap is a guardrail on hard effort, not on moving
+        at all."""
+        from .training import activity_intensity
+
         d = day or _today_iso()
-        row = self._conn.execute(
-            "SELECT COUNT(*) AS n FROM breaks "
+        rows = self._conn.execute(
+            "SELECT layer, activity_type FROM breaks "
             "WHERE machine_id = ? AND day = ? AND layer IN ('training', 'big') "
             "AND outcome = 'completed'",
             (self.machine_id, d),
-        ).fetchone()
-        return row["n"]
+        ).fetchall()
+        count = 0
+        for r in rows:
+            if r["layer"] == "big" and r["activity_type"] is not None:
+                if activity_intensity(r["activity_type"]) == "easy":
+                    continue
+            count += 1
+        return count
 
     # --- exercise progression --------------------------------------------------
 

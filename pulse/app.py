@@ -29,7 +29,7 @@ from .settings import Settings
 from .state_machine import EngineEvent, SessionEngine, SessionState
 from .storage import PulseStorage
 from .theme import build_vars, inject_theme
-from .training import big_break_payload, pick_big_break_options, pick_session, session_payload
+from .training import big_break_payload, pick_session, session_payload
 from .ui.break_card import BreakCard
 from .ui.checkin import CheckinCard
 from .ui.dayplan import DayPlanCard
@@ -569,12 +569,16 @@ class PulseApp:
         hard_lock = enforcement == "hard_lock"
 
         session = pick_session(self.storage, self._training_session_cursor)
-        bb_opts = pick_big_break_options(3)
+        cap = int(self.config.max_training_sessions_per_day)
+        cap_spent = self.storage.training_count_today() >= cap
 
-        # Both regular session payload and big_break options travel together so the
-        # get-ready screen's "go outside" button can switch without another round-trip.
+        # Both regular session payload and the Big Break menu (presets, activity
+        # catalogue, duration picker) travel together so the get-ready screen's
+        # "go outside" button can switch without another round-trip. Hard Big
+        # Break items are marked unavailable once cap_spent — Walk (easy) stays
+        # available regardless; "you can always walk" is the floor under the cap.
         payload = session_payload(session, hard_lock=hard_lock)
-        payload["options"] = big_break_payload(bb_opts)["options"]
+        payload.update(big_break_payload(cap_spent, hard_lock))
         self.training_card.start_session(payload)
 
     def _on_exercise_outcome(self, exercise_id: str, outcome: str) -> dict:
@@ -605,10 +609,16 @@ class PulseApp:
         self._in_training = False
         self._show_checkin()
 
-    def _on_big_break_done(self) -> None:
-        """12-min Big Break finished. Record, persist, queue check-in."""
+    def _on_big_break_done(
+        self, activity_id: str, elapsed_minutes: float, open_ended: bool
+    ) -> None:
+        """Big Break finished — any activity/duration, countdown or open-ended.
+        Record with the actual measured minutes, persist, queue check-in."""
         enforcement = self.settings.get("enforcement_training")
-        self.storage.record_break("big", enforcement, "completed")
+        self.storage.record_break(
+            "big", enforcement, "completed", elapsed_minutes * 60.0,
+            activity_type=activity_id, activity_minutes=elapsed_minutes,
+        )
         with self._lock:
             self.engine.record_training_session()
         self._training_session_cursor += 1

@@ -4,7 +4,7 @@
 > **Audience:** ADHD / autistic minds  
 > **Platform:** Windows 11 (packaged .exe via PyInstaller + Inno Setup)  
 > **Repo:** `space-divergentfutures/pulse` (public, AGPL-3.0)  
-> **Status:** All 13 build steps complete + data export + reading sessions shipped. 288 tests passing. Packaged exe ships.  
+> **Status:** All 13 build steps complete + data export + reading sessions + Big Break activity menu shipped. 313 tests passing. Packaged exe ships.  
 > **Changelog:** see `CHANGELOG.md` for user-facing history.
 
 ---
@@ -54,7 +54,7 @@ pulse/
 ├── storage.py              # PulseStorage — all SQLite access
 ├── sync.py                 # Optional PocketBase sync (off by default)
 ├── theme.py                # CSS variable injection per appearance setting
-├── training.py             # Exercise/Big Break picker + payload builders
+├── training.py             # Exercise picker, Big Break activities/presets/duration picker, payload builders
 ├── platform/
 │   ├── base.py             # PlatformInterface (abstract)
 │   └── windows.py          # Win32: idle, session lock, work area, startup, fullscreen
@@ -79,7 +79,7 @@ pulse/
 │       └── firstrun.*      # Guided first-run wizard
 ├── data/
 │   ├── exercises.json      # Exercise library (6 categories, 3 levels each)
-│   └── big_break.json      # 12-min Big Break options
+│   └── big_break.json      # Big Break activity catalogue (8) + presets (5)
 tests/
 ├── conftest.py             # Mocked-clock helpers
 ├── test_state_machine.py   # Engine tick, transitions, suspend gap
@@ -205,6 +205,37 @@ Proved pywebview frameless + always-on-top works on Windows. Transparency is unr
 - Syncs `checkins` and `breaks` tables; remote rows received from other machines are inserted `ON CONFLICT IGNORE` (local rows are never overwritten)
 - Retry queue: any row not in `sync_log` is re-attempted next cycle
 
+### Post-13 — Big Break activity menu + duration picker (shipped)
+- `pulse/data/big_break.json` restructured: `activities` (8: Walk, Run, Bike, Sprint
+  Intervals, Weightlifting, Gym Session, Jump Rope, KB Circuit — each with `intensity`
+  "hard"/"easy", `rain_ok`, `default_minutes`, `cue`) + `presets` (5, unchanged stable ids,
+  resolved against their activity)
+- Big Break picker now shows **all 5 presets** (was first-3-of-5) plus **"Choose your own →"**:
+  activity grid → duration picker (1-min steps to 30 min → 5-min steps to 2 h → 15-min steps
+  to 4 h, plus an **"Open-ended — stop when I'm done"** stopwatch) → confirm → timer
+- **Cap is intensity-tagged**: hard activities/presets consume `max_training_sessions_per_day`
+  same as before; Walk (`intensity: "easy"`) never does and stays offerable in the menu even
+  once the cap is spent for the day — hard items grey out with a one-line reason instead
+- **Hard-lock ceiling**: `BIG_BREAK_HARDLOCK_CEILING_MIN = 90` (module constant in
+  `pulse/training.py`, not a user setting) — a Big Break is only hard-lockable at ≤ 90 min
+  and not open-ended; longer or open-ended sessions are always honour-based regardless of
+  the `enforcement_training` setting
+- `breaks` gains two nullable columns (`activity_type`, `activity_minutes`) via an additive
+  migration, same pattern as `meal_prompts.food_detail`/`water_amount`; `layer` stays `"big"`
+  so existing insights are untouched; open-ended completions log the actual measured elapsed
+  minutes, not a preset duration
+- `storage.training_count_today()` now resolves each `big`-layer row's intensity via
+  `pulse.training.activity_intensity()` to decide whether it counts toward the cap
+- Pure, unit-tested helpers in `pulse/training.py`: `is_available()`, `big_break_is_hardlockable()`,
+  `duration_picker_options()`
+- New UI phases in `training_card.*`: `#phaseBigActivity` (grid), `#phaseBigDuration`
+  (native `<select>` scrollable picker) — `training_card.py`'s `big_break_done` bridge method
+  now takes `(activity_id, elapsed_minutes, open_ended)`
+- Out of scope (per spec, deliberately not built): activity-based insights ("you biked 3×
+  this week") — the columns make it possible later
+- 25 new tests across `tests/test_big_break.py` (the 6 spec-mandated groups) + updated
+  `tests/test_training.py` for the new data schema
+
 ### Post-13 — Reading sessions / day plan (shipped)
 - First active moment of each day: corner card asks "How long are you at the desk today?" (+/- picker, half-hour steps, "not today" skip)
 - Planned day ≥ 4 h (configurable `reading_min_day_hours`) → a reading session (default 30 min, configurable `reading_session_minutes`) is scheduled at the **midpoint** of the planned window (wall-clock)
@@ -320,9 +351,10 @@ All rows have UUID PKs. Multi-machine merge is safe: records from different `mac
 
 ## Test Coverage
 
-288 tests, all passing. Mocked-clock design means timing bugs are caught deterministically without real sleeps.
+313 tests, all passing. Mocked-clock design means timing bugs are caught deterministically without real sleeps.
 
 ```
+test_big_break.py         # Big Break: migration, cap logic, hard-lock ceiling, duration steps, presets
 test_dayplan.py           # Reading scheduling maths + day_plans storage
 test_export.py            # Data export: whitelist, cutoff types, CSV/JSON, manifest
 test_state_machine.py     # Engine tick, all transitions, suspend-gap, tick-wrap
@@ -348,7 +380,7 @@ test_windows_idle.py      # Win32 idle detection (mocked ctypes)
 
 - **Windows 11 only** for the full feature set — idle detection, session lock, and startup are Win32. pywebview itself supports macOS/Linux, but those platform adapters don't exist yet.
 - **WebView2 runtime dependency** — checked on launch with a friendly message, but still a hurdle on locked-down machines.
-- **Static exercise / Big Break content** — `exercises.json` and `big_break.json` are not user-editable yet.
+- **Static exercise content** — `exercises.json` is not user-editable yet (Big Break's activity catalogue in `big_break.json` now covers 8 types + custom durations, but the list itself still isn't user-editable).
 - **Meal window times defined in code** (`meal.py`) — not yet editable in Settings.
 - **No voice/audio cues** — people working in exclusive-fullscreen apps can miss the corner widget.
 - **SmartScreen warning** on first launch of unsigned builds (normal for small open-source tools; documented in README).

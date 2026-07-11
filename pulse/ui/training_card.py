@@ -60,11 +60,11 @@ class _TrainingBridge:
         self._card._on_close_cb()
         return {"ok": True}
 
-    def big_break_started(self, option_id: str) -> dict:
+    def big_break_started(self, activity_id: str) -> dict:
         return {"ok": True}
 
-    def big_break_done(self) -> dict:
-        self._card._on_big_break_done_cb()
+    def big_break_done(self, activity_id: str, elapsed_minutes: float, open_ended: bool) -> dict:
+        self._card._on_big_break_done_cb(activity_id, float(elapsed_minutes), bool(open_ended))
         return {"ok": True}
 
 
@@ -76,7 +76,7 @@ class TrainingCard:
         on_exercise_outcome: Callable[[str, str], dict],
         on_session_complete: Callable[[list], None],
         on_close: Callable[[], None],
-        on_big_break_done: Callable[[], None],
+        on_big_break_done: Callable[[str, float, bool], None],
         width: int = DEFAULT_WIDTH,
         height: int = DEFAULT_HEIGHT,
     ) -> None:

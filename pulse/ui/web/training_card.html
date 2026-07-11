@@ -7,11 +7,15 @@
   <link rel="stylesheet" href="training_card.css">
 </head>
 <body>
-  <!-- Training card (spec §5b). One window, five phases:
+  <!-- Training card (spec §5b). One window, phases:
        getready → session → complete   (regular training session)
-       getready → bigbreak_pick → bigbreak_timer  (Big Break variant)
+       getready → bigbreak_pick → bigbreak_timer                    (one-tap preset)
+       getready → bigbreak_pick → bigbreak_activity → bigbreak_duration → bigbreak_timer
+                                                                      (choose-your-own activity + duration)
 
-       For hard-lock mode: "Skip" button is hidden; otherwise honor-based. -->
+       For hard-lock mode: "Skip" button is hidden; otherwise honor-based. Big Break
+       hard-lock only applies at or below the duration ceiling and never to an
+       open-ended session — see BIG_BREAK_HARDLOCK_CEILING_MIN in pulse/training.py. -->
 
   <!-- PHASE: Get-ready (90s countdown before the session) -->
   <div id="phaseGetready" class="card" hidden>
@@ -22,7 +26,7 @@
       <span class="gr-timer" id="grTimer">1:30</span>
     </div>
     <button class="action" id="grReady">I'm ready — start now</button>
-    <button class="link-btn" id="grBigBreak">Or, go outside for 12 min →</button>
+    <button class="link-btn" id="grBigBreak">Or, go outside/move instead →</button>
   </div>
 
   <!-- PHASE: Session (exercises one by one) -->
@@ -52,13 +56,34 @@
     <button class="action" id="completeClose">Close</button>
   </div>
 
-  <!-- PHASE: Big Break — option picker -->
+  <!-- PHASE: Big Break — preset picker (one tap) + "Choose your own" -->
   <div id="phaseBigPick" class="card" hidden>
-    <div class="kicker">Big Break — pick your 12 minutes</div>
-    <div class="big-options" id="bigOptions"><!-- filled by JS --></div>
+    <div class="kicker">Big Break</div>
+    <div class="big-options" id="bigOptions"><!-- filled by JS: presets + "Choose your own" --></div>
   </div>
 
-  <!-- PHASE: Big Break — timer -->
+  <!-- PHASE: Big Break — activity grid (custom path) -->
+  <div id="phaseBigActivity" class="card" hidden>
+    <div class="kicker">Big Break — choose your own</div>
+    <div class="big-activity-grid" id="bigActivityGrid"><!-- filled by JS --></div>
+    <div class="big-activity-cue" id="bigActivityCue">&nbsp;</div>
+    <button class="action" id="bigActivityNext" disabled>Continue →</button>
+    <button class="link-btn" id="bigActivityBack">← back</button>
+  </div>
+
+  <!-- PHASE: Big Break — duration picker (custom path) -->
+  <div id="phaseBigDuration" class="card" hidden>
+    <div class="kicker">Big Break — how long?</div>
+    <div class="big-duration-name" id="bigDurationName">Walk</div>
+    <div class="control">
+      <select id="bigDurationSelect"><!-- filled by JS --></select>
+    </div>
+    <button class="action" id="bigDurationStart">Start</button>
+    <button class="link-btn" id="bigDurationBack">← back</button>
+  </div>
+
+  <!-- PHASE: Big Break — timer (countdown for a picked duration, or a stopwatch
+       for open-ended) -->
   <div id="phaseBigTimer" class="card" hidden>
     <div class="kicker">Big Break</div>
     <div class="big-name" id="bigName">Sprint Intervals</div>

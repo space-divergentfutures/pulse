@@ -1,44 +1,32 @@
 {
-  "options": [
-    {
-      "id": "sprint_intervals",
-      "name": "Sprint Intervals",
-      "duration_minutes": 12,
-      "description": "2 min easy jog to warm up. Then 8 × 30 s sprint / 60 s walk. Cool down 1–2 min.",
-      "cue": "Sprint at 80–90% — working hard, not all-out. Walk fully between. Sprints carry cold-start injury risk; the warm-up jog is not optional.",
-      "rain_ok": false
-    },
-    {
-      "id": "easy_run",
-      "name": "12-min Run",
-      "duration_minutes": 12,
-      "description": "Easy conversational pace for the full 12 min. No stops.",
-      "cue": "Slower than you think. You should be able to say a sentence without gasping.",
-      "rain_ok": false
-    },
-    {
-      "id": "bike_intervals",
-      "name": "Bike — Hard Pushes",
-      "duration_minutes": 12,
-      "description": "5 min easy warm-up, then alternate 30 s hard / 90 s easy for the remaining time.",
-      "cue": "Hard means legs burning. Easy means actually easy — not moderate.",
-      "rain_ok": true
-    },
-    {
-      "id": "kb_amrap",
-      "name": "Outdoor KB Circuit",
-      "duration_minutes": 12,
-      "description": "AMRAP 12 min: KB swings 15 / goblet squat 10 / pushups 10. Rest as needed.",
-      "cue": "Move with purpose, not urgency. Quality reps over rounds. Don't sacrifice the hinge for speed.",
-      "rain_ok": true
-    },
-    {
-      "id": "jump_rope",
-      "name": "Jump-Rope Intervals",
-      "duration_minutes": 12,
-      "description": "40 s on / 20 s off for 12 min. Simple footwork — no tricks.",
-      "cue": "Stay light on your feet. Land on the toes, not the heels. Keep the bounce small.",
-      "rain_ok": true
-    }
+  "activities": [
+    { "id": "walk",       "name": "Walk",             "intensity": "easy", "rain_ok": false, "default_minutes": 20,
+      "cue": "Just walk. Pace doesn't matter — being outside and moving does." },
+    { "id": "run",        "name": "Run",              "intensity": "hard", "rain_ok": false, "default_minutes": 15,
+      "cue": "Conversational pace unless you decided otherwise before you left. Warm into it — first 3 minutes easy." },
+    { "id": "bike",       "name": "Bike",             "intensity": "hard", "rain_ok": true,  "default_minutes": 20,
+      "cue": "Warm up 5 min easy before any hard pushes. Hard means legs burning; easy means actually easy." },
+    { "id": "sprints",    "name": "Sprint Intervals", "intensity": "hard", "rain_ok": false, "default_minutes": 12,
+      "cue": "2 min jog + leg swings first — sprints carry cold-start injury risk; the warm-up is not optional. 80–90%, never all-out." },
+    { "id": "weights",    "name": "Weightlifting",    "intensity": "hard", "rain_ok": true,  "default_minutes": 45,
+      "cue": "Warm-up sets first. Quality reps over load. Stop the set when form goes, not when ego does." },
+    { "id": "gym",        "name": "Gym Session",      "intensity": "hard", "rain_ok": true,  "default_minutes": 60,
+      "cue": "Have the first exercise decided before you walk in — the plan survives contact better than motivation does." },
+    { "id": "jump_rope",  "name": "Jump Rope",        "intensity": "hard", "rain_ok": true,  "default_minutes": 12,
+      "cue": "Stay light on your feet. Land on the toes, keep the bounce small." },
+    { "id": "kb_circuit", "name": "KB Circuit",       "intensity": "hard", "rain_ok": true,  "default_minutes": 12,
+      "cue": "Move with purpose, not urgency. Don't sacrifice the hinge for speed." }
+  ],
+  "presets": [
+    { "id": "sprint_intervals", "activity": "sprints",    "name": "Sprint Intervals",  "duration_minutes": 12,
+      "description": "2 min easy jog to warm up. Then 8 × 30 s sprint / 60 s walk. Cool down 1–2 min." },
+    { "id": "easy_run",         "activity": "run",        "name": "12-min Run",        "duration_minutes": 12,
+      "description": "Easy conversational pace for the full 12 min. No stops." },
+    { "id": "bike_intervals",   "activity": "bike",       "name": "Bike — Hard Pushes","duration_minutes": 12,
+      "description": "5 min easy warm-up, then alternate 30 s hard / 90 s easy for the remaining time." },
+    { "id": "kb_amrap",         "activity": "kb_circuit", "name": "Outdoor KB Circuit","duration_minutes": 12,
+      "description": "AMRAP 12 min: KB swings 15 / goblet squat 10 / pushups 10. Rest as needed." },
+    { "id": "jump_rope",        "activity": "jump_rope",  "name": "Jump-Rope Intervals","duration_minutes": 12,
+      "description": "40 s on / 20 s off for 12 min. Simple footwork — no tricks." }
   ]
 }

@@ -8,6 +8,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Big Break activity menu + duration picker** — Big Break now shows all 5 curated presets
+  (was only 3 of 5) plus a "Choose your own →" path: pick from 8 activities (Walk, Run,
+  Bike, Sprint Intervals, Weightlifting, Gym Session, Jump Rope, KB Circuit), then a
+  duration — 1-min steps to 30 min, 5-min steps to 2 h, 15-min steps to 4 h, or
+  "Open-ended — stop when I'm done" (a stopwatch that logs actual elapsed time). Walk is
+  intensity `"easy"` and never consumes the daily training cap, and stays offerable in the
+  menu even once the cap is spent — hard activities grey out instead with a one-line reason.
+  Hard-lock enforcement now only applies to Big Break sessions ≤ 90 minutes and not
+  open-ended (`BIG_BREAK_HARDLOCK_CEILING_MIN`, see SETTINGS.md) — closes the multi-hour
+  hard-lock footgun. `breaks` gains two nullable columns (`activity_type`, `activity_minutes`,
+  additive migration) so completed sessions log which activity and how long, without touching
+  existing insights (`layer` stays `"big"`). 25 new tests.
 - **Reading sessions (day plan)** — at the first active moment of each day, PULSE asks
   "How long are you at the desk today?" (half-hour-step picker, skippable without guilt).
   If the planned day is 4+ hours (configurable), a 30-minute reading break (configurable)

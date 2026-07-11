@@ -45,7 +45,19 @@ a key is absent — the database starts empty, so defaults cost nothing.
 **training_enabled** — whether the harder training layer (strength/conditioning exercises)
 is offered at all. Off = light movement nudges only.
 
-**max_training_sessions_per_day** — cap on hard sessions per day. The Big Break counts as one.
+**max_training_sessions_per_day** — cap on **hard-intensity** sessions per day (regular
+training sessions, and Big Break activities whose catalogue entry is `intensity: "hard"` —
+Run, Bike, Sprint Intervals, Weightlifting, Gym Session, Jump Rope, KB Circuit). Walk is
+`intensity: "easy"` and never consumes this cap — it stays offerable in the Big Break menu
+even once the cap is spent for the day (see `pulse/data/big_break.json`).
+
+**Big Break hard-lock ceiling** — `BIG_BREAK_HARDLOCK_CEILING_MIN = 90` (a module constant
+in `pulse/training.py`, **not** a user setting). When `enforcement_training` is `hard_lock`,
+a Big Break session is only hard-lockable if its duration is ≤ 90 minutes and it isn't
+open-ended; anything longer, or the open-ended "stop when I'm done" stopwatch option, is
+always honour-based regardless of the enforcement setting. This closes the obvious footgun
+of a multi-hour (or unbounded) hard-locked session — hard-lock stays scoped to genuinely
+short, bounded efforts.
 
 ---
 
