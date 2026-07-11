@@ -7,6 +7,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **Sitting-anchored day plan** — the desk-time question and reading schedule were
+  anchored to calendar midnight, so a session crossing 12am could consume the next
+  morning's question, or a real overnight sleep on the same date wouldn't re-ask. Both
+  are now anchored to a **sitting** (wake → sleep) instead: a session that crosses
+  midnight is one sitting (asked once, no re-ask), and waking the machine after a
+  night's sleep always starts a fresh sitting (always re-asks) regardless of the
+  calendar date. A sitting ends on either an engine-detected suspend/hibernate gap (any
+  length) or a continuous idle/away/locked span reaching a new `sitting_gap_hours`
+  setting (default 4h) — short gaps like lunch never end it. Reading's midpoint is now
+  anchored to the sitting's actual start rather than whenever the question happened to
+  be answered. `day_plans` gains two nullable columns (`started_ts`, `ended_ts`,
+  additive migration; table name kept for compatibility) and the storage API moves from
+  one-row-per-date lookups to an open/close sitting model. Any sitting left open by a
+  killed process gets closed on the next launch instead of lingering. 330 tests total
+  (up from 313), including a new `tests/test_sitting.py` covering the 7 spec-mandated
+  boundary scenarios (midnight crossing, overnight suspend, short gaps, threshold edge,
+  zombie cleanup, reading-offer reset, migration).
+
 ### Added
 - **Big Break activity menu + duration picker** — Big Break now shows all 5 curated presets
   (was only 3 of 5) plus a "Choose your own →" path: pick from 8 activities (Walk, Run,

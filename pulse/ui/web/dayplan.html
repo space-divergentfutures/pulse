@@ -7,13 +7,14 @@
   <link rel="stylesheet" href="dayplan.css">
 </head>
 <body>
-  <!-- Day plan card (reading feature). Shown once at the first active moment of
-       each day: "how long are you here?" If the answer is long enough, a reading
-       session gets scheduled at the midpoint of the window. One question, one
-       tap, gone. Skippable without guilt. -->
+  <!-- Sitting plan card (reading feature). Shown once at the first active moment
+       of each sitting (wake → sleep, not a calendar day — see is_qualifying_gap
+       in pulse/dayplan.py): "how long are you here?" If the answer is long
+       enough, a reading session gets scheduled at the midpoint of the sitting.
+       One question, one tap, gone. Skippable without guilt. -->
   <div class="card" id="card">
     <div class="plan-icon">📖</div>
-    <div class="plan-hd">How long are you at the desk today?</div>
+    <div class="plan-hd">How long are you at the desk?</div>
     <div class="plan-sub">If there's room, PULSE will slot in a reading break.</div>
     <div class="picker-row">
       <button id="planMinus" class="pick-btn">−</button>

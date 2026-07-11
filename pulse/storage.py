@@ -181,6 +181,16 @@ class PulseStorage:
                 self._conn.execute(
                     f"ALTER TABLE breaks ADD COLUMN {col} {defn}"
                 )
+
+        existing_day_plans = {
+            row["name"]
+            for row in self._conn.execute("PRAGMA table_info(day_plans)").fetchall()
+        }
+        for col, defn in [("started_ts", "REAL"), ("ended_ts", "REAL")]:
+            if col not in existing_day_plans:
+                self._conn.execute(
+                    f"ALTER TABLE day_plans ADD COLUMN {col} {defn}"
+                )
         self._conn.commit()
 
     # --- machine identity ------------------------------------------------------
@@ -441,45 +451,67 @@ class PulseStorage:
             self._conn.commit()
         return mid
 
-    # --- day plans (reading feature) ---------------------------------------------
+    # --- sittings (reading feature — spec: Day Plan → Sitting Plan v1) -----------
+    #
+    # A sitting is wake → sleep, not a calendar date (the `day_plans` table name
+    # is historical — kept for compat with export and any existing rows; do not
+    # rename). One open row (ended_ts IS NULL) at a time per machine: opened at
+    # the sitting's first active moment, optionally filled in once the plan
+    # question is answered, closed when a qualifying gap ends the sitting.
 
-    def record_day_plan(
-        self,
-        planned_hours: float | None,
-        reading_at: float | None,
-        ts: float | None = None,
-    ) -> str:
-        """Store today's plan (planned_hours None = skipped). Returns the UUID."""
-        pid = str(uuid.uuid4())
-        ts = time.time() if ts is None else ts
-        d = _date.fromtimestamp(ts).isoformat()
+    def open_sitting(self, started_ts: float) -> str:
+        """Start a new sitting (unanswered plan). Returns its UUID."""
+        sid = str(uuid.uuid4())
+        d = _date.fromtimestamp(started_ts).isoformat()
         with self._lock:
             self._conn.execute(
                 "INSERT INTO day_plans "
-                "(id, machine_id, date, planned_hours, reading_at, reading_done, ts) "
-                "VALUES (?, ?, ?, ?, ?, 0, ?)",
-                (pid, self.machine_id, d, planned_hours, reading_at, ts),
+                "(id, machine_id, date, planned_hours, reading_at, reading_done, "
+                "ts, started_ts, ended_ts) "
+                "VALUES (?, ?, ?, NULL, NULL, 0, ?, ?, NULL)",
+                (sid, self.machine_id, d, started_ts, started_ts),
             )
             self._conn.commit()
-        return pid
+        return sid
 
-    def day_plan_today(self, date: str | None = None) -> dict | None:
-        """Today's plan on this machine, or None if not asked yet."""
-        d = date or _today_iso()
+    def open_sitting_row(self) -> dict | None:
+        """The currently open sitting on this machine, or None."""
         row = self._conn.execute(
-            "SELECT * FROM day_plans WHERE machine_id = ? AND date = ? "
+            "SELECT * FROM day_plans WHERE machine_id = ? AND ended_ts IS NULL "
             "ORDER BY ts DESC LIMIT 1",
-            (self.machine_id, d),
+            (self.machine_id,),
         ).fetchone()
         return dict(row) if row is not None else None
 
-    def mark_reading_done(self, date: str | None = None) -> None:
-        d = date or _today_iso()
+    def set_sitting_plan(
+        self, sitting_id: str, planned_hours: float | None, reading_at: float | None
+    ) -> None:
+        """Record the plan-question answer against an open sitting (planned_hours
+        None = skipped — the sitting stays open with no reading scheduled and
+        isn't asked again until it ends)."""
         with self._lock:
             self._conn.execute(
-                "UPDATE day_plans SET reading_done = 1 "
-                "WHERE machine_id = ? AND date = ?",
-                (self.machine_id, d),
+                "UPDATE day_plans SET planned_hours = ?, reading_at = ? "
+                "WHERE id = ? AND machine_id = ?",
+                (planned_hours, reading_at, sitting_id, self.machine_id),
+            )
+            self._conn.commit()
+
+    def close_sitting(self, sitting_id: str, ended_ts: float) -> None:
+        """End a sitting. ``ended_ts`` should be the last active moment, not the
+        moment the qualifying gap was recognised — the caller backdates it."""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE day_plans SET ended_ts = ? WHERE id = ? AND machine_id = ?",
+                (ended_ts, sitting_id, self.machine_id),
+            )
+            self._conn.commit()
+
+    def mark_reading_done(self, sitting_id: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE day_plans SET reading_done = 1 WHERE id = ? AND machine_id = ?",
+                (sitting_id, self.machine_id),
             )
             self._conn.commit()
 

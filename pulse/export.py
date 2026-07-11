@@ -157,14 +157,19 @@ active_time — one row per machine per day
   machine_id, day                   as above
   active_minutes    total active minutes accumulated that day
 
-day_plans — one row per day you answered the day-plan question
-  id, machine_id, date              as above
+day_plans — one row per sitting (wake-to-sleep, not a calendar day) you were
+  asked the desk-time question in. The table name is historical.
+  id, machine_id, date              as above (sitting start's local date)
   planned_hours     how long you said you'd be at the desk
                     (empty = you skipped the question)
   reading_at        when the reading session was scheduled
-                    (epoch seconds; empty = no reading that day)
+                    (epoch seconds; empty = no reading that sitting)
   reading_done      1 if you took the reading session, else 0
-  ts                when you answered, epoch seconds
+  ts                when the sitting started, epoch seconds
+  started_ts        sitting start (first active moment); empty on rows from
+                    before this column existed
+  ended_ts          sitting end (last active moment before you left); empty
+                    while the sitting is still open, or on old rows
 
 ---------------------------------------------------------------
 TIPS

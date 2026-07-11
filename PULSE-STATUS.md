@@ -4,7 +4,7 @@
 > **Audience:** ADHD / autistic minds  
 > **Platform:** Windows 11 (packaged .exe via PyInstaller + Inno Setup)  
 > **Repo:** `space-divergentfutures/pulse` (public, AGPL-3.0)  
-> **Status:** All 13 build steps complete + data export + reading sessions + Big Break activity menu shipped. 313 tests passing. Packaged exe ships.  
+> **Status:** All 13 build steps complete + data export + reading sessions + Big Break activity menu + sitting-anchored day plan shipped. 330 tests passing. Packaged exe ships.  
 > **Changelog:** see `CHANGELOG.md` for user-facing history.
 
 ---
@@ -236,13 +236,44 @@ Proved pywebview frameless + always-on-top works on Windows. Transparency is unr
 - 25 new tests across `tests/test_big_break.py` (the 6 spec-mandated groups) + updated
   `tests/test_training.py` for the new data schema
 
-### Post-13 — Reading sessions / day plan (shipped)
+### Post-13 — Sitting-anchored day plan (shipped, supersedes the calendar-day version below)
+- **Bug fixed:** the day-plan question and reading schedule were anchored to calendar
+  midnight — a late session crossing 12am could consume the next morning's question
+  (real occurrence: TJ answered "2 hours" at 12:05am and got silence at the actual start
+  of his day)
+- Re-anchored to a **sitting** (wake → sleep, not a date): the ask fires once per sitting,
+  at its first active moment; a sitting ends — backdated to the **last active moment**,
+  not the moment the gap was recognised — on either (a) an engine-detected
+  suspend/hibernate-scale poll gap at **any** magnitude, or (b) a continuous
+  idle/away/locked span reaching the new `sitting_gap_hours` setting (default 4h, group
+  Reading). Short gaps (lunch, a 40-min errand) never end it
+- A session crossing midnight is one sitting (one ask, no re-ask); waking the machine
+  after a night's sleep always starts a fresh sitting (always re-asks) regardless of the
+  calendar date
+- No second idle detector: `pulse.dayplan.is_qualifying_gap()` (pure, unit-tested) reuses
+  the presence layer's existing `idle_seconds` and a new `EngineEvent.SUSPEND_DETECTED`
+  (state_machine.py — fires on any suspend-scale poll gap, independent of whether it's
+  also long enough for the existing `AWAY_RESET`)
+- Reading's midpoint is now anchored to the sitting's cached start timestamp, not
+  whenever the plan question happened to be answered
+- `day_plans` (table name kept for compatibility) gains `started_ts`/`ended_ts` (additive
+  migration); storage API moved from one-row-per-date lookups (`day_plan_today`,
+  `record_day_plan`) to an open/close sitting model (`open_sitting`, `open_sitting_row`,
+  `set_sitting_plan`, `close_sitting`, `mark_reading_done(sitting_id)`)
+- **Zombie cleanup:** a sitting left open by a killed process is closed on the next
+  launch (one-time check, falls back to the row's own `ts` — no better data exists that
+  early in a fresh process) before a new one opens
+- Out of scope (per spec, deliberately not built): sitting-based insights — the logged
+  start/end data makes it possible later
+- New `tests/test_sitting.py` — the 7 spec-mandated groups (midnight crossing, overnight
+  suspend, short gap, threshold edge, zombie cleanup, reading-offer reset, migration)
+
+### Post-13 — Reading sessions / day plan (shipped; calendar-day anchoring, since replaced)
 - First active moment of each day: corner card asks "How long are you at the desk today?" (+/- picker, half-hour steps, "not today" skip)
 - Planned day ≥ 4 h (configurable `reading_min_day_hours`) → a reading session (default 30 min, configurable `reading_session_minutes`) is scheduled at the **midpoint** of the planned window (wall-clock)
 - When due, the corner widget shows "Reading break — whenever you're ready" (same offer pattern as training); the next break the user starts becomes the reading break ("Grab your book", self-started timer, hydration rides)
-- Honour-based; recorded in `breaks` with layer `reading` (does NOT count toward the training cap) and settled in the new `day_plans` table
+- Honour-based; recorded in `breaks` with layer `reading` (does NOT count toward the training cap)
 - Focus Guard: offer stays quiet, pending flag still routes the next natural break to reading
-- Survives restarts (plan persists in SQLite); expires naturally at midnight
 - Pure scheduling maths in `pulse/dayplan.py` (mocked-clock testable); new UI: `ui/dayplan.py` + `web/dayplan.*`
 - Also fixed in this pass: the widget's training-ready "Do it" button was routed to an unwired callback (dead unless the countdown had taken the card over) — training/reading clicks now route through `break_now`
 
@@ -273,7 +304,7 @@ meta                  -- key/value store (machine_id, useful_check_ms, ...)
 active_time           -- daily active minutes per machine (summed at display, never merged)
 checkins              -- block ratings: id, machine_id, ts, day, rating, block_type, energy, note, skipped
 meal_prompts          -- id, machine_id, date, window, answered, extended_minutes, food_detail, water_amount
-day_plans             -- id, machine_id, date, planned_hours, reading_at, reading_done, ts
+day_plans             -- id, machine_id, date, planned_hours, reading_at, reading_done, ts, started_ts, ended_ts (one row per sitting, not per date)
 breaks                -- training/big/light break log: id, machine_id, ts, day, layer, enforcement, outcome, duration_s
 exercise_progress     -- per-exercise level (1/2/3), clean_streak, consec_skips, pain_until
 settings              -- all user-facing settings as JSON strings
@@ -303,6 +334,7 @@ All rows have UUID PKs. Multi-machine merge is safe: records from different `mac
 | `reading_enabled` | true | Reading |
 | `reading_session_minutes` | 30 min | Reading |
 | `reading_min_day_hours` | 4 hrs | Reading |
+| `sitting_gap_hours` | 4 hrs | Reading |
 | `rating_scale_style` | numbers | Reflection |
 | `appearance_theme` | dark | Appearance |
 | `appearance_accent` | teal | Appearance |
@@ -351,11 +383,12 @@ All rows have UUID PKs. Multi-machine merge is safe: records from different `mac
 
 ## Test Coverage
 
-313 tests, all passing. Mocked-clock design means timing bugs are caught deterministically without real sleeps.
+330 tests, all passing. Mocked-clock design means timing bugs are caught deterministically without real sleeps.
 
 ```
 test_big_break.py         # Big Break: migration, cap logic, hard-lock ceiling, duration steps, presets
-test_dayplan.py           # Reading scheduling maths + day_plans storage
+test_dayplan.py           # Reading scheduling maths, is_qualifying_gap, sitting CRUD
+test_sitting.py           # Sitting boundaries: midnight, suspend, short gaps, zombie cleanup
 test_export.py            # Data export: whitelist, cutoff types, CSV/JSON, manifest
 test_state_machine.py     # Engine tick, all transitions, suspend-gap, tick-wrap
 test_accumulators.py      # Short-break, boundary, lifetime, useful-check counters

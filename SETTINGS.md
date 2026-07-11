@@ -97,19 +97,32 @@ break. Once settled per window per day.
 | `reading_enabled` | bool | `true` | — |
 | `reading_session_minutes` | number | `30.0` | 10 – 60 min |
 | `reading_min_day_hours` | number | `4.0` | 1 – 10 hrs |
+| `sitting_gap_hours` | number | `4.0` | 1 – 12 hrs |
 
-**reading_enabled** — at the first active moment of each day, PULSE asks how long you're
-at the desk ("Start my day" card, +/- picker in half-hour steps, skippable). If the planned
-day is at least `reading_min_day_hours` long, a reading session is scheduled at the
-midpoint of the window. When it's due, the corner widget shows "Reading break — whenever
-you're ready" (same gentle offer pattern as training), and the next break you start becomes
-the reading break: grab your book, self-started timer, hydration still rides. Honour-based;
-recorded in the `breaks` table with layer `reading`. Off = no day-plan question, no reading
-offers; all other layers unaffected.
+**reading_enabled** — at the first active moment of each **sitting** (wake → sleep, not a
+calendar date — see `sitting_gap_hours`), PULSE asks how long you're at the desk ("Start my
+day" card, +/- picker in half-hour steps, skippable). If the planned sitting is at least
+`reading_min_day_hours` long, a reading session is scheduled at the midpoint of the sitting.
+When it's due, the corner widget shows "Reading break — whenever you're ready" (same gentle
+offer pattern as training), and the next break you start becomes the reading break: grab
+your book, self-started timer, hydration still rides. Honour-based; recorded in the `breaks`
+table with layer `reading`. Off = no plan question, no reading offers; all other layers
+unaffected.
 
 **reading_session_minutes** — length of the reading timer.
 
-**reading_min_day_hours** — planned days shorter than this stay purely work + movement.
+**reading_min_day_hours** — planned sittings shorter than this stay purely work + movement.
+(Key name is historical from the day-based version; kept for compatibility.)
+
+**sitting_gap_hours** — a sitting is anchored to wake-and-sleep, not the calendar: it starts
+at the first active moment after a qualifying gap and ends, backdated to your last active
+moment, when the next qualifying gap begins. A gap qualifies when either (a) the engine
+detects a suspend/hibernate-scale poll gap, at any length — closing the lid always ends a
+sitting, or (b) you've been continuously idle/away/locked for at least `sitting_gap_hours`.
+This is why a session crossing midnight is one sitting (no re-ask), while waking the machine
+after a night's sleep always starts a fresh one (always re-asks) regardless of the date. A
+lunch break or short errand, being well under the threshold, never re-asks. See
+`pulse.dayplan.is_qualifying_gap` and `PulseApp._tick_sitting`.
 
 ---
 

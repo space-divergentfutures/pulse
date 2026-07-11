@@ -249,13 +249,14 @@ SETTING_DEFS: tuple[SettingDef, ...] = (
         default=True,
         group="Reading",
         explainer=Explainer(
-            what="At the start of each day PULSE asks how long you're at the desk. "
-            "If the day is long enough, a book-reading session gets its own slot at "
-            "the midpoint — a protected half hour instead of the thing that never "
-            "happens.",
+            what="At the start of each sitting (from when you sit down until you're "
+            "away long enough to count as a real break — not tied to the calendar "
+            "date) PULSE asks how long you're at the desk. If the sitting is long "
+            "enough, a book-reading session gets its own slot at the midpoint — a "
+            "protected half hour instead of the thing that never happens.",
             who="Tends to help people whose reading pile grows while the hyperfocus "
             "eats every free hour.",
-            tradeoff="Off means no day-plan question and no reading offers — the "
+            tradeoff="Off means no plan question and no reading offers — the "
             "movement, water, and meal layers are unaffected.",
         ),
     ),
@@ -278,7 +279,7 @@ SETTING_DEFS: tuple[SettingDef, ...] = (
     ),
     SettingDef(
         key="reading_min_day_hours",
-        label="Minimum day for reading",
+        label="Minimum sitting for reading",
         kind="number",
         default=4.0,
         group="Reading",
@@ -286,12 +287,34 @@ SETTING_DEFS: tuple[SettingDef, ...] = (
         minimum=1.0,
         maximum=10.0,
         explainer=Explainer(
-            what="A reading session is only scheduled when your planned day is at "
-            "least this long. Shorter days stay purely work + movement breaks.",
-            who="Raise it if short days feel too tight to give up half an hour; "
-            "lower it if you want reading offered almost every day.",
-            tradeoff="Lower means more reading days but less work time on short "
-            "days; higher protects short days but reading happens less often.",
+            what="A reading session is only scheduled when your planned sitting is "
+            "at least this long. Shorter sittings stay purely work + movement breaks.",
+            who="Raise it if short sittings feel too tight to give up half an hour; "
+            "lower it if you want reading offered almost every sitting.",
+            tradeoff="Lower means more reading sittings but less work time on short "
+            "ones; higher protects short sittings but reading happens less often.",
+        ),
+    ),
+    SettingDef(
+        key="sitting_gap_hours",
+        label="Away time before a new sitting",
+        kind="number",
+        default=4.0,
+        group="Reading",
+        unit="hrs",
+        minimum=1.0,
+        maximum=12.0,
+        explainer=Explainer(
+            what="How long PULSE waits after you leave (or the machine sleeps) "
+            "before treating your return as a fresh sitting — which asks the "
+            "desk-time question again and re-anchors reading. Waking after a "
+            "night's sleep always starts a fresh sitting no matter how short "
+            "this is set.",
+            who="Lower suits people with distinct morning/evening shifts at the "
+            "desk; higher suits people who drift in and out all day and only "
+            "want to be asked once.",
+            tradeoff="Too low re-asks after a long lunch; too high merges a "
+            "morning and an evening session into one sitting.",
         ),
     ),
     SettingDef(

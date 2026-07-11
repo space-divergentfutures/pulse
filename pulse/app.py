@@ -20,7 +20,7 @@ import webview
 
 from .config import TimingConfig
 from .content import hydration_prompt_at, light_movement_at
-from .dayplan import PLAN_DEFAULT_HOURS, reading_due, reading_time_for
+from .dayplan import PLAN_DEFAULT_HOURS, is_qualifying_gap, reading_due, reading_time_for
 from .meal import active_window_now
 from .platform import get_platform
 from .platform.base import PlatformInterface
@@ -105,10 +105,12 @@ class PulseApp:
         self._useful_check_seeded = False   # seed engine counter from storage on first tick
         self._last_checkin_id: str | None = None
 
-        # Day plan / reading session (post-13). Plan state is cached from storage
-        # once per day so the poll loop doesn't hit SQLite every 5 s.
-        self._plan_date: str | None = None   # date the cached plan state is for
-        self._plan_asked = False             # day-plan card shown/answered today
+        # Sitting plan / reading session (spec: Day Plan → Sitting Plan v1). A
+        # sitting is wake → sleep, not a calendar date — see _tick_sitting.
+        self._sitting_initialized = False       # one-time zombie cleanup done
+        self._sitting_id: str | None = None     # open day_plans row id, or None
+        self._sitting_started_ts: float | None = None  # for the reading midpoint
+        self._last_active_ts: float | None = None      # for backdating sitting-end
         self._reading_at: float | None = None
         self._reading_done = False
         self._reading_pending = False        # due now; next break becomes reading
@@ -340,7 +342,8 @@ class PulseApp:
             for event in events:
                 self._handle_event(event)
 
-            self._tick_day_plan(presence, state)
+            suspend_detected = EngineEvent.SUSPEND_DETECTED in events
+            self._tick_sitting(presence, idle, suspend_detected, state)
 
             # Keep the corner countdown current while it's showing (ACTIVE-time based,
             # so it pauses when the person goes idle — re-pushed here every poll).
@@ -354,45 +357,58 @@ class PulseApp:
 
             self._stop.wait(self.poll_interval)
 
-    # --- day plan / reading session (post-13) -----------------------------------
+    # --- sitting plan / reading session (spec: Day Plan → Sitting Plan v1) ------
 
-    def _tick_day_plan(self, presence, state) -> None:
-        """Once per poll: ask the day-plan question at the first active moment of a
-        new day, and surface the reading offer when its scheduled time arrives."""
+    def _tick_sitting(self, presence, idle_seconds, suspend_detected, state, now: float | None = None) -> None:
+        """Once per poll: track the current sitting (wake → sleep, not a calendar
+        date), ask the plan question at its first active moment, and surface the
+        reading offer when its scheduled time arrives.
+
+        ``now`` is injectable for tests; production always uses the wall clock."""
         if not self.settings.get("reading_enabled"):
             return
         if not self.settings.first_run_complete:
             return
 
-        from datetime import date as _d
-        today = _d.today().isoformat()
+        now_wall = time.time() if now is None else now
+        gap_hours = float(self.settings.get("sitting_gap_hours"))
 
-        # New day (or first tick): load any existing plan from storage.
-        if self._plan_date != today:
-            self._plan_date = today
-            self._reading_pending = False
-            plan = self.storage.day_plan_today(today)
-            if plan is not None:
-                self._plan_asked = True
-                self._reading_at = plan["reading_at"]
-                self._reading_done = bool(plan["reading_done"])
-            else:
-                self._plan_asked = False
-                self._reading_at = None
-                self._reading_done = False
+        # One-time, at process start: close any sitting a previous run left open
+        # if it's stale, then adopt whatever's left (a still-fresh sitting simply
+        # continues across the restart).
+        if not self._sitting_initialized:
+            self._sitting_initialized = True
+            self._cleanup_stale_sitting(gap_hours, now_wall)
+            row = self.storage.open_sitting_row()
+            if row is not None:
+                self._sitting_id = row["id"]
+                self._sitting_started_ts = row["started_ts"] or row["ts"]
+                self._reading_at = row["reading_at"]
+                self._reading_done = bool(row["reading_done"])
+
+        if presence.counts_as_active:
+            self._last_active_ts = now_wall
+
+        if is_qualifying_gap(presence.counts_as_active, idle_seconds, gap_hours, suspend_detected):
+            if self._sitting_id is not None:
+                self._close_current_sitting(now_wall)
 
         busy = self._in_break or self._in_training or self._paused
 
-        # Ask once, at the first active moment of the day.
-        if not self._plan_asked and presence.counts_as_active and not busy:
-            self._plan_asked = True
+        # No open sitting: the first active moment starts one and asks.
+        if self._sitting_id is None and presence.counts_as_active and not busy:
+            self._sitting_id = self.storage.open_sitting(now_wall)
+            self._sitting_started_ts = now_wall
+            self._reading_at = None
+            self._reading_done = False
+            self._reading_pending = False
             self.dayplan_card.ask(PLAN_DEFAULT_HOURS)
             return
 
         # Offer the reading session when its time arrives. The offer is a gentle
         # widget state (like training) — never a takeover — and once pending, the
         # next break the user starts becomes the reading break.
-        if reading_due(self._reading_at, self._reading_done, time.time()) and not busy:
+        if reading_due(self._reading_at, self._reading_done, now_wall) and not busy:
             self._reading_pending = True
             focus_mode = self.settings.get("focus_mode_enabled")
             # In focus mode stay quiet; the pending flag still routes the next
@@ -406,13 +422,41 @@ class PulseApp:
                     float(self.settings.get("reading_session_minutes"))
                 )
 
+    def _cleanup_stale_sitting(self, gap_hours: float, now_wall: float) -> None:
+        """One-time, at process start: close a sitting left open by a previous run
+        if it's stale. There's no engine last-active data this early in a fresh
+        process, so per spec the close timestamp falls back to the row's own ts."""
+        row = self.storage.open_sitting_row()
+        if row is None:
+            return
+        age_basis = row["started_ts"] if row["started_ts"] is not None else row["ts"]
+        if age_basis is None:
+            return
+        if now_wall - age_basis >= gap_hours * 3600.0:
+            self.storage.close_sitting(row["id"], row["ts"])
+
+    def _close_current_sitting(self, now_wall: float) -> None:
+        """End the open sitting, backdated to the last active moment (not the
+        moment the gap was recognised). A pending reading offer never survives
+        into the next sitting."""
+        ended = self._last_active_ts if self._last_active_ts is not None else now_wall
+        self.storage.close_sitting(self._sitting_id, ended)
+        self._sitting_id = None
+        self._sitting_started_ts = None
+        self._reading_at = None
+        self._reading_done = False
+        self._reading_pending = False
+
     def _on_day_planned(self, hours: float | None) -> None:
-        """Day-plan answer from the card ("Start my day" or "not today")."""
+        """Sitting-plan answer from the card ("Start my day" or "not today")."""
         self.dayplan_card.hide()
+        if self._sitting_id is None:
+            return  # sitting already ended before the card was answered — rare race
+        base = self._sitting_started_ts if self._sitting_started_ts is not None else time.time()
         reading_at = reading_time_for(
-            hours, float(self.settings.get("reading_min_day_hours")), time.time()
+            hours, float(self.settings.get("reading_min_day_hours")), base
         )
-        self.storage.record_day_plan(hours, reading_at)
+        self.storage.set_sitting_plan(self._sitting_id, hours, reading_at)
         self._reading_at = reading_at
         self._reading_done = False
 
@@ -631,10 +675,11 @@ class PulseApp:
         """Break finished (honor-based). The check-in rides on the break you're already
         taking — one interruption, not two (§7)."""
         if self._in_reading:
-            # Record the reading session and settle today's offer.
+            # Record the reading session and settle this sitting's offer.
             minutes = float(self.settings.get("reading_session_minutes"))
             self.storage.record_break("reading", "honor", "completed", minutes * 60.0)
-            self.storage.mark_reading_done()
+            if self._sitting_id is not None:
+                self.storage.mark_reading_done(self._sitting_id)
             self._reading_done = True
             self._in_reading = False
         with self._lock:

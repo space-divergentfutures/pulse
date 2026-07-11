@@ -1,9 +1,10 @@
-/* PULSE day plan card behaviour (reading feature).
+/* PULSE sitting plan card behaviour (reading feature).
  *
- * One question at the first active moment of the day: how long are you here?
- * +/- picker in half-hour steps. "Start my day" sends the hours to Python;
- * "not today" skips without guilt. Python owns what happens next (scheduling
- * the reading session at the midpoint if the day is long enough).
+ * One question at the first active moment of each sitting (wake → sleep, not
+ * a calendar day): how long are you here? +/- picker in half-hour steps.
+ * "Start my day" sends the hours to Python; "not today" skips without guilt.
+ * Python owns what happens next (scheduling the reading session at the
+ * midpoint if the sitting is long enough).
  */
 (function () {
   "use strict";

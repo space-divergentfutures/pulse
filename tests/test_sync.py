@@ -513,5 +513,6 @@ def test_sync_enabled_settable(settings):
 
 def test_setting_count_with_sync():
     # 12 (step 5) + 1 (focus_mode) + 4 (appearance) + 1 (start_with_windows) + 1 (sync_enabled) = 19
-    assert len(SETTING_DEFS) == 22
+    assert len(SETTING_DEFS) == 23
+
 

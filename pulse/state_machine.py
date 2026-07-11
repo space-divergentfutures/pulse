@@ -36,6 +36,10 @@ class EngineEvent(enum.Enum):
     AWAY_RESET = "away_reset"              # real break detected; short accumulator reset
     BOUNDARY_DUE = "boundary_due"          # ~90 min of active work reached (§5b)
     USEFUL_CHECK_DUE = "useful_check_due"  # 5.5 active-hours elapsed (§7)
+    SUSPEND_DETECTED = "suspend_detected"  # poll gap > suspend_gap_seconds (any magnitude);
+                                            # the sitting layer treats this as a qualifying
+                                            # gap regardless of whether it's also long enough
+                                            # to trigger AWAY_RESET
 
 
 @dataclass(frozen=True)
@@ -124,8 +128,10 @@ class SessionEngine:
         if delta > self._suspend_gap_ms:
             # No polling for longer than the gap threshold => the machine slept or the
             # process was suspended. Attribute NOTHING to active time (§4: no 2-hour
-            # laptop nap silently counted as work). A gap long enough to be a real
-            # break also resets the short cycle.
+            # laptop nap silently counted as work). Always signal the suspend itself —
+            # the sitting layer (day plan / reading) treats ANY suspend as a qualifying
+            # gap, independent of whether it's also long enough for AWAY_RESET below.
+            events.append(EngineEvent.SUSPEND_DETECTED)
             if delta >= self._away_reset_ms:
                 if self._short_break_ms > 0:
                     events.append(EngineEvent.AWAY_RESET)
